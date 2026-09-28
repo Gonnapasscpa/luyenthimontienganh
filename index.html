@@ -1842,7 +1842,8 @@ function siteFooter() {
 }
 // ---- tin tức mới nhất từ gonnapass.com (đọc trực tiếp qua WordPress API, lưu tạm 1 giờ trên trình duyệt)
 // q = chuyên mục + các chuyên mục con (gonnapass.com gắn bài vào mục con, VD Thuế GTGT thuộc Kế toán - Thuế) - khớp với khối TIN TỨC trên trang chủ gonnapass.com
-var NEWS_CATS = [{ id: 227, q: "227", name: "Tin nổi bật", slug: "tin-noi-bat", color: "#f5a93b" }, { id: 216, q: "216,217,218,219,220,221,230", name: "Kế toán - Thuế", slug: "ke-toan-thue", color: "#004a7c" }, { id: 222, q: "222,223,224,225,1323", name: "Kinh nghiệm ôn thi", slug: "kinh-nghiem-on-thi", color: "#8cc63f" }];
+// cột 1 = bài mới đăng nhất trên toàn gonnapass.com (mọi chuyên mục, q rỗng); bài đã hiện ở cột 1 không lặp lại ở cột sau
+var NEWS_CATS = [{ id: 1, q: "", name: "Tin mới nhất", slug: "", color: "#f5a93b" }, { id: 216, q: "216,217,218,219,220,221,230", name: "Kế toán - Thuế", slug: "ke-toan-thue", color: "#004a7c" }, { id: 222, q: "222,223,224,225,1323", name: "Kinh nghiệm ôn thi", slug: "kinh-nghiem-on-thi", color: "#8cc63f" }];
 var NEWS = null, NEWS_LOADING = false;
 // tiêu đề viết HOA toàn bộ -> viết hoa chữ đầu, giữ nguyên các từ viết tắt chuyên ngành
 var NEWS_ABBR = ["CPA", "ACCA", "CMA", "CFA", "IFRS", "VAS", "BCTC", "GTGT", "TNDN", "TNCN", "TTĐB", "TTDB", "FCT", "HĐLĐ", "BHXH", "BHYT", "BTC", "TCT", "KTV", "NĐ", "TT", "QĐ", "CV", "VN"];
@@ -1865,13 +1866,13 @@ function decodeHtml(h) { var t = document.createElement("textarea"); t.innerHTML
 function safeLink(u) { return /^https:\/\/gonnapass\.com\//.test(String(u || "")) ? u : BLOG_URL; }
 function loadNews() {
   if (NEWS || NEWS_LOADING) return;
-  var c = lsGet("gnp:news3", null);
+  var c = lsGet("gnp:news4", null);
   if (c && c.at && Date.now() - c.at < 3600 * 1000 && c.data) { NEWS = c.data; return; }
   if (typeof fetch !== "function") { NEWS = []; return; }
   NEWS_LOADING = true;
   var api = "https://gonnapass.com/wp-json/wp/v2/";
   Promise.all(NEWS_CATS.map(function (cat) {
-    return fetch(api + "posts?per_page=12&categories=" + (cat.q || cat.id) + "&_fields=id,title,link,date,featured_media,excerpt").then(function (r) { return r.json(); });
+    return fetch(api + "posts?per_page=12" + (cat.q ? "&categories=" + cat.q : "") + "&_fields=id,title,link,date,featured_media,excerpt").then(function (r) { return r.json(); });
   })).then(function (lists) {
     var ids = []; lists.forEach(function (l) { (l || []).forEach(function (p) { if (p.featured_media && ids.indexOf(p.featured_media) < 0) ids.push(p.featured_media); }); });
     var media = ids.length ? fetch(api + "media?per_page=50&include=" + ids.join(",") + "&_fields=id,source_url,media_details").then(function (r) { return r.json(); }).catch(function () { return []; }) : Promise.resolve([]);
@@ -1882,7 +1883,7 @@ function loadNews() {
           return { title: niceTitle(decodeHtml(p.title && p.title.rendered)), link: safeLink(p.link), date: p.date, img: /^https:\/\/gonnapass\.com\//.test(img[p.featured_media] || "") ? img[p.featured_media] : "", ex: cleanExcerpt(decodeHtml(p.excerpt && p.excerpt.rendered)) };
         }) };
       });
-      lsSet("gnp:news3", { at: Date.now(), data: NEWS });
+      lsSet("gnp:news4", { at: Date.now(), data: NEWS });
     });
   }).catch(function () { NEWS = []; }).then(function () { NEWS_LOADING = false; if (S.view === "home") { var box = el("newsBox"); if (box) box.outerHTML = newsHtml(); } });
 }
@@ -1890,10 +1891,10 @@ function newsHtml() {
   if (NEWS && !NEWS.length) return '<div id="newsBox"></div>';
   var used = {}, logo = LOGO_SRC ? '<img src="' + esc(LOGO_SRC) + '" alt="">' : "", sel = {};
   var pick = function (posts, n) { var out = []; (posts || []).forEach(function (p) { if (out.length < n && !used[p.link]) { used[p.link] = 1; out.push(p); } }); return out; };
-  // cùng thứ tự như gonnapass.com (Tin nổi bật trước); mỗi bài chỉ xuất hiện ở 1 cột
-  if (NEWS) [227, 216, 222].forEach(function (id) { var d = NEWS.filter(function (x) { return x.cat === id; })[0] || { posts: [] }; sel[id] = pick(d.posts, 4); });
+  // theo thứ tự cột (Tin mới nhất trước); mỗi bài chỉ xuất hiện ở 1 cột
+  if (NEWS) NEWS_CATS.map(function (c) { return c.id; }).forEach(function (id) { var d = NEWS.filter(function (x) { return x.cat === id; })[0] || { posts: [] }; sel[id] = pick(d.posts, 4); });
   var cols = NEWS_CATS.map(function (cat) {
-    var more = "https://gonnapass.com/category/" + cat.slug + "/", list = sel[cat.id], body;
+    var more = cat.slug ? "https://gonnapass.com/category/" + cat.slug + "/" : BLOG_URL, list = sel[cat.id], body;
     if (!NEWS) body = '<div class="news-skel"></div><div class="news-skel sm"></div><div class="news-skel sm"></div>';
     else if (!list || !list.length) body = '<p class="small muted">Xem các bài viết mới nhất tại gonnapass.com.</p>';
     else {
