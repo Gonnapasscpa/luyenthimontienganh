@@ -666,6 +666,10 @@ tr.st-row.st-da_xu_ly, tr.st-row.st-da_sua, tr.st-row.st-tu_choi{background:var(
 .site-footer{background:linear-gradient(150deg,var(--hero-1),var(--hero-2));}
 .site-footer .sf-copy{border-top-color:rgba(255,255,255,.12);}
 
+/* hướng dẫn lần đầu đăng nhập */
+.login-tip{display:flex;gap:8px;align-items:flex-start;margin:0 0 14px;padding:10px 12px;border-radius:10px;background:#eef3fb;border:1px solid #d6e2f5;color:#0b2a5b;font-size:13.5px;line-height:1.5}
+.login-tip svg{flex:0 0 auto;margin-top:2px;color:#002060}
+
 </style>
 </head>
 <body>
@@ -720,6 +724,7 @@ function normalizePhone(s) {
 function simpleHash(str) { var h = 0x811c9dc5; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16); }
 
 var ICONS = {
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
   exam: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h6"/>',
   layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
   shuffle: '<path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/>',
@@ -1697,6 +1702,7 @@ VIEWS.login = {
         authMsg() + authBtn("doSetPw", "Lưu mật khẩu và đăng nhập") + '<p class="small" style="margin-top:12px;"><a href="#" data-act="authMode" data-m="login">Quay lại đăng nhập</a></p>';
     } else {
       form = '<h2>Đăng nhập</h2><p class="small muted">Tên đăng nhập là số điện thoại bạn đã đăng ký.</p>' +
+        '<div class="login-tip">' + icon("info", "sm") + '<span><b>Nếu bạn đã mua sách của Gonnapass</b>, hãy nhập số điện thoại đã dùng khi đặt sách, để trống ô mật khẩu rồi bấm <b>Đăng nhập</b> để tạo mật khẩu mới và bắt đầu luyện thi.</span></div>' +
         authField("auPhone", "Số điện thoại", "tel", "VD: 0912345678", f.phone) + authField("auPass", "Mật khẩu", "password", "", "") +
         '<div class="row between" style="margin-top:6px;"><span></span><a href="#" class="small" data-act="authMode" data-m="forgot">Quên mật khẩu?</a></div>' +
         authMsg() + authBtn("doLogin", "Đăng nhập") +
@@ -1834,8 +1840,9 @@ function siteFooter() {
       '<div class="sf-social"><a href="' + GNP_LINKS.facebook + '" target="_blank" rel="noopener">Facebook</a><a href="' + GNP_LINKS.youtube + '" target="_blank" rel="noopener">YouTube</a><a href="' + BLOG_URL + '" target="_blank" rel="noopener">Website</a></div></div>' +
     '</div><div class="sf-copy">© ' + new Date().getFullYear() + " GonnaPass. All Rights Reserved.</div></footer>";
 }
-// ---- tin tức mới nhất từ gonnapass.com (đọc trực tiếp qua WordPress API, lưu tạm 6 giờ trên trình duyệt)
-var NEWS_CATS = [{ id: 227, name: "Tin nổi bật", slug: "tin-noi-bat", color: "#f5a93b" }, { id: 216, name: "Kế toán - Thuế", slug: "ke-toan-thue", color: "#004a7c" }, { id: 222, name: "Kinh nghiệm ôn thi", slug: "kinh-nghiem-on-thi", color: "#8cc63f" }];
+// ---- tin tức mới nhất từ gonnapass.com (đọc trực tiếp qua WordPress API, lưu tạm 1 giờ trên trình duyệt)
+// q = chuyên mục + các chuyên mục con (gonnapass.com gắn bài vào mục con, VD Thuế GTGT thuộc Kế toán - Thuế) - khớp với khối TIN TỨC trên trang chủ gonnapass.com
+var NEWS_CATS = [{ id: 227, q: "227", name: "Tin nổi bật", slug: "tin-noi-bat", color: "#f5a93b" }, { id: 216, q: "216,217,218,219,220,221,230", name: "Kế toán - Thuế", slug: "ke-toan-thue", color: "#004a7c" }, { id: 222, q: "222,223,224,225,1323", name: "Kinh nghiệm ôn thi", slug: "kinh-nghiem-on-thi", color: "#8cc63f" }];
 var NEWS = null, NEWS_LOADING = false;
 // tiêu đề viết HOA toàn bộ -> viết hoa chữ đầu, giữ nguyên các từ viết tắt chuyên ngành
 var NEWS_ABBR = ["CPA", "ACCA", "CMA", "CFA", "IFRS", "VAS", "BCTC", "GTGT", "TNDN", "TNCN", "TTĐB", "TTDB", "FCT", "HĐLĐ", "BHXH", "BHYT", "BTC", "TCT", "KTV", "NĐ", "TT", "QĐ", "CV", "VN"];
@@ -1858,13 +1865,13 @@ function decodeHtml(h) { var t = document.createElement("textarea"); t.innerHTML
 function safeLink(u) { return /^https:\/\/gonnapass\.com\//.test(String(u || "")) ? u : BLOG_URL; }
 function loadNews() {
   if (NEWS || NEWS_LOADING) return;
-  var c = lsGet("gnp:news2", null);
-  if (c && c.at && Date.now() - c.at < 6 * 3600 * 1000 && c.data) { NEWS = c.data; return; }
+  var c = lsGet("gnp:news3", null);
+  if (c && c.at && Date.now() - c.at < 3600 * 1000 && c.data) { NEWS = c.data; return; }
   if (typeof fetch !== "function") { NEWS = []; return; }
   NEWS_LOADING = true;
   var api = "https://gonnapass.com/wp-json/wp/v2/";
   Promise.all(NEWS_CATS.map(function (cat) {
-    return fetch(api + "posts?per_page=12&categories=" + cat.id + "&_fields=id,title,link,date,featured_media,excerpt").then(function (r) { return r.json(); });
+    return fetch(api + "posts?per_page=12&categories=" + (cat.q || cat.id) + "&_fields=id,title,link,date,featured_media,excerpt").then(function (r) { return r.json(); });
   })).then(function (lists) {
     var ids = []; lists.forEach(function (l) { (l || []).forEach(function (p) { if (p.featured_media && ids.indexOf(p.featured_media) < 0) ids.push(p.featured_media); }); });
     var media = ids.length ? fetch(api + "media?per_page=50&include=" + ids.join(",") + "&_fields=id,source_url,media_details").then(function (r) { return r.json(); }).catch(function () { return []; }) : Promise.resolve([]);
@@ -1875,7 +1882,7 @@ function loadNews() {
           return { title: niceTitle(decodeHtml(p.title && p.title.rendered)), link: safeLink(p.link), date: p.date, img: /^https:\/\/gonnapass\.com\//.test(img[p.featured_media] || "") ? img[p.featured_media] : "", ex: cleanExcerpt(decodeHtml(p.excerpt && p.excerpt.rendered)) };
         }) };
       });
-      lsSet("gnp:news2", { at: Date.now(), data: NEWS });
+      lsSet("gnp:news3", { at: Date.now(), data: NEWS });
     });
   }).catch(function () { NEWS = []; }).then(function () { NEWS_LOADING = false; if (S.view === "home") { var box = el("newsBox"); if (box) box.outerHTML = newsHtml(); } });
 }
@@ -1883,8 +1890,8 @@ function newsHtml() {
   if (NEWS && !NEWS.length) return '<div id="newsBox"></div>';
   var used = {}, logo = LOGO_SRC ? '<img src="' + esc(LOGO_SRC) + '" alt="">' : "", sel = {};
   var pick = function (posts, n) { var out = []; (posts || []).forEach(function (p) { if (out.length < n && !used[p.link]) { used[p.link] = 1; out.push(p); } }); return out; };
-  // mỗi bài chỉ xuất hiện ở 1 cột: chuyên mục cụ thể chọn trước, "Tin nổi bật" lấy các bài còn lại
-  if (NEWS) [216, 222, 227].forEach(function (id) { var d = NEWS.filter(function (x) { return x.cat === id; })[0] || { posts: [] }; sel[id] = pick(d.posts, 4); });
+  // cùng thứ tự như gonnapass.com (Tin nổi bật trước); mỗi bài chỉ xuất hiện ở 1 cột
+  if (NEWS) [227, 216, 222].forEach(function (id) { var d = NEWS.filter(function (x) { return x.cat === id; })[0] || { posts: [] }; sel[id] = pick(d.posts, 4); });
   var cols = NEWS_CATS.map(function (cat) {
     var more = "https://gonnapass.com/category/" + cat.slug + "/", list = sel[cat.id], body;
     if (!NEWS) body = '<div class="news-skel"></div><div class="news-skel sm"></div><div class="news-skel sm"></div>';
