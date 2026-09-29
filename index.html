@@ -799,6 +799,22 @@ input.wb-slot{min-width:255px;}
 .login-side h1{margin-top:10px;}
 .lg-feats{margin-top:26px; padding-top:24px;}
 
+/* khung đăng nhập lớn hơn; khung giới thiệu: sách ở trên, chữ dồn xuống gần lề dưới, khoảng cách đều (29/09) */
+@media (min-width:721px){
+  .login-shell{width:min(1100px, calc(100vw - 48px)); max-width:none; position:relative; left:50%; transform:translateX(-50%); margin-left:0; margin-right:0; min-height:660px; grid-template-columns:1fr 1fr; margin-top:36px;}
+  .login-side{justify-content:space-between; padding:48px 44px 46px;}
+  .lb-wrap{width:232px; margin:0 auto;}
+  .lb-glow{width:340px; height:340px;}
+  .lg-text{display:flex; flex-direction:column; align-items:center; width:100%;}
+  .login-side h1{font-size:26px;}
+  .lg-feats{max-width:420px; margin-top:28px; padding-top:26px; gap:14px;}
+  .lg-feat b{font-size:14px;} .lg-feat small{font-size:12.5px;}
+  .login-form{padding:48px 52px;}
+  .login-form h2{font-size:26px;}
+  .login-form .btn{padding:14px 18px; font-size:16px;}
+  .login-form input{padding:13px 14px; font-size:15.5px;}
+}
+
 </style>
 </head>
 <body>
@@ -1860,8 +1876,8 @@ VIEWS.login = {
         '<p class="small muted" style="margin:4px 0 10px;">Đăng ký bằng số điện thoại và email để luyện thử ngay.</p>' +
         '<button class="btn secondary" data-act="authMode" data-m="register">Đăng ký tài khoản</button></div>';
     }
-    return '<div class="login-shell"><div class="login-side">' + loginBook() + '<div class="eyebrow">Gonnapass · Beyond yourself</div><h1>Luyện Thi CPA môn Tiếng Anh<span>cùng Gonnapass</span></h1>' +
-      '<div class="lg-feats">' + LOGIN_FEATS.map(function (x) { return '<div class="lg-feat"><span class="lg-ic">' + icon(x[0], "sm") + "</span><b>" + esc(x[1]) + "</b><small>" + esc(x[2]) + "</small></div>"; }).join("") + "</div></div>" +
+    return '<div class="login-shell"><div class="login-side">' + loginBook() + '<div class="lg-text"><div class="eyebrow">Gonnapass · Beyond yourself</div><h1>Luyện Thi CPA môn Tiếng Anh<span>cùng Gonnapass</span></h1>' +
+      '<div class="lg-feats">' + LOGIN_FEATS.map(function (x) { return '<div class="lg-feat"><span class="lg-ic">' + icon(x[0], "sm") + "</span><b>" + esc(x[1]) + "</b><small>" + esc(x[2]) + "</small></div>"; }).join("") + "</div></div></div>" +
       '<div class="login-form">' + form + '<p class="small muted" style="margin-top:16px;">Cần hỗ trợ? Hotline/Zalo <b>' + HOTLINE + "</b></p></div></div>";
   },
   after: function () {
