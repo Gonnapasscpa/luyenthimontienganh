@@ -1828,8 +1828,7 @@ VIEWS.login = {
         authField("auPhone", "Số điện thoại", "tel", "VD: 0912345678", f.phone) + authMsg() + authBtn("doForgot", "Gửi mật khẩu tạm") +
         '<p class="small" style="margin-top:12px;"><a href="#" data-act="authMode" data-m="login">Quay lại đăng nhập</a></p>';
     } else if (m === "setpw") {
-      form = '<h2>Tạo mật khẩu</h2><p class="small muted">Tài khoản <b>' + esc(f.phone || "") + "</b> chưa có mật khẩu. Vui lòng tạo mật khẩu để đăng nhập từ nay về sau." + (f.hasEmail ? " Để xác minh, hãy nhập đúng email đã đăng ký với Gonnapass." : "") + "</p>" +
-        authField("auEmail", f.hasEmail ? "Email đã đăng ký" : "Email (để nhận thông báo, khôi phục mật khẩu)", "email", "VD: ban@gmail.com", f.email) +
+      form = '<h2>Tạo mật khẩu</h2><p class="small muted">Tài khoản <b>' + esc(f.phone || "") + "</b> chưa có mật khẩu. Vui lòng tạo mật khẩu để đăng nhập từ nay về sau.</p>" +
         authField("auPass", "Mật khẩu mới (ít nhất 6 ký tự)", "password", "", "") + authField("auPass2", "Nhập lại mật khẩu", "password", "", "") +
         authMsg() + authBtn("doSetPw", "Lưu mật khẩu và đăng nhập") + '<p class="small" style="margin-top:12px;"><a href="#" data-act="authMode" data-m="login">Quay lại đăng nhập</a></p>';
     } else {
