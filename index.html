@@ -3895,6 +3895,8 @@ function sjEnglishView() {
   var tab = S.guideTab || "cautruc";
   var tabs = [["cautruc", "Cấu trúc & thang điểm"], ["dangbai", "Dạng bài các năm"], ["kinhnghiem", "Kinh nghiệm ôn thi"]];
   var body = tab === "dangbai" ? gdYearsTab() : tab === "kinhnghiem" ? tipsEnglish() : gdStructure();
+  // trang Kinh nghiệm đã có 1 khung sách cuối trang: bỏ khung sách trong phần Tiếng Anh (không sửa hàm của 08a)
+  body = body.replace(/<div class="gd-book">[\s\S]*?<\/a><\/div>/g, "");
   return '<div class="sj-head"><h3>Tiếng Anh</h3><span class="pill">Môn điều kiện - Chứng chỉ Kế toán viên, Kiểm toán viên</span></div>' +
     '<p class="muted" style="margin:6px 0 0;">Cấu trúc đề thi CPA môn Tiếng Anh, các dạng bài qua từng năm và kinh nghiệm tự ôn thi từ đội ngũ Gonnapass.</p>' +
     '<div class="chips gd-tabs" role="tablist" style="margin:14px 0 16px;">' + tabs.map(function (x) {
@@ -4258,6 +4260,7 @@ VIEWS.admin = {
   },
   after: function () {
     if (S.adm && (S.adm.tab === "baoloi" || S.adm.tab === "gopy")) setTimeout(function () { admAutoSeen(S.adm.tab); }, 400);
+    if (S.adm && S.adm.tab === "dexuat") setTimeout(function () { admSugSeen(); }, 400);
     var s = el("aqSearch"); if (s) s.addEventListener("input", debounce(function () { S.adm.q = s.value; render(); var n = el("aqSearch"); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 400));
     var sf2 = el("stFilter"); if (sf2) sf2.addEventListener("change", function () { S.adm.stFilter = sf2.value; render(); });
     ["stFrom", "stTo"].forEach(function (id) { var x = el(id); if (x) x.addEventListener("change", function () { S.adm[id] = x.value; render(); }); });
@@ -4550,6 +4553,7 @@ ACT.admExportQuestions = function () {
   } catch (e) { toast("Trình duyệt chưa hỗ trợ tải file, vui lòng thử trình duyệt khác"); }
 };
 ACT.admEditQ = function (t) {
+  var seen = t.getAttribute && t.getAttribute("data-seen"); if (seen) admSugSeen(seen.split(","));
   var it = ITEMS[t.getAttribute("data-id")]; if (!it) return;
   var reportId = t.getAttribute("data-report") || "";
   var ctx = it.type === "cloze" ? '<div class="passage" style="max-height:160px;overflow:auto;">' + esc(it._block.passage || "") + "</div>" : (it._passage ? '<details><summary class="small">Xem đoạn văn</summary><div class="passage">' + esc(it._passage.text) + "</div></details>" : "");
@@ -4644,17 +4648,18 @@ function sugGroups(list) {
     if (x.ThoiGian < o.first) o.first = x.ThoiGian; if (x.ThoiGian > o.last) o.last = x.ThoiGian;
   });
   return order.map(function (k) {
-    var o = g[k]; o.status = o.st.moi ? "moi" : o.st.da_duyet ? "da_duyet" : "tu_choi";
+    var o = g[k]; o.status = o.st.moi ? "moi" : o.st.da_xem ? "da_xem" : o.st.da_duyet ? "da_duyet" : "tu_choi";
     var it = ITEMS[o.qid]; o.inBank = !!(it && officialCands(it).some(function (c) { return sameText(it.type === "sentence_transformation" ? withLead(it, o.answer) : o.answer, c); }));
     return o;
   });
 }
 function admSuggestions(a) {
-  var groups = sugGroups(a.dexuat), f = a.sugFilter || "moi";
+  var groups = sugGroups(a.dexuat), f = a.sugFilter || "cho";
+  var pend = function (st) { return st === "moi" || st === "da_xem"; };   // chờ duyệt = chưa xem + đã xem
   var all = a.dexuat || [], qs = {}; all.forEach(function (x) { qs[x.MaCau] = 1; });
-  var cnt = function (s) { return groups.filter(function (o) { return o.status === s; }).length; };
-  var shown = groups.filter(function (o) { return f === "all" || o.status === f; })
-    .sort(function (x, y) { return (y.status === "moi") - (x.status === "moi") || y.n - x.n || (y.last > x.last ? 1 : -1); });
+  var cnt = function (s) { return groups.filter(function (o) { return s === "cho" ? pend(o.status) : o.status === s; }).length; };
+  var shown = groups.filter(function (o) { return f === "all" || (f === "cho" ? pend(o.status) : o.status === f); })
+    .sort(function (x, y) { return (y.status === "moi") - (x.status === "moi") || pend(y.status) - pend(x.status) || y.n - x.n || (y.last > x.last ? 1 : -1); });
   var rows = shown.map(function (o) {
     var names = Object.keys(o.who).map(function (p) { return esc(o.who[p]); });
     var ids = esc(o.ids.join(","));
@@ -4663,13 +4668,13 @@ function admSuggestions(a) {
       '<td class="small">' + names.join(", ") + '<div class="muted">' + esc(fmtVN(o.first)) + (o.last !== o.first ? " → " + esc(fmtVN(o.last)) : "") + "</div></td><td>" + statusPill(o.status) +
       '<div class="stack" style="margin-top:6px;">' +
       (o.status !== "da_duyet" ? '<button class="btn sm" data-act="admAcceptAlt" data-ids="' + ids + '" data-q="' + esc(o.qid) + '" data-a="' + esc(o.answer) + '">Chấp nhận là đáp án đúng</button>' : "") +
-      (o.status === "moi" ? '<button class="btn sm secondary" data-act="admSugReject" data-ids="' + ids + '">Từ chối</button>' : "") +
-      '<button class="btn sm ghost" data-act="admEditQ" data-id="' + esc(o.qid) + '">Mở câu hỏi</button></div></td></tr>';
+      (pend(o.status) ? '<button class="btn sm secondary" data-act="admSugReject" data-ids="' + ids + '">Từ chối</button>' : "") +
+      '<button class="btn sm ghost" data-act="admEditQ" data-id="' + esc(o.qid) + '" data-seen="' + (o.status === "moi" ? ids : "") + '">Mở câu hỏi</button></div></td></tr>';
   }).join("");
   var opt = function (v, l) { return '<option value="' + v + '"' + (f === v ? " selected" : "") + ">" + l + "</option>"; };
-  return '<div class="statgrid">' + tile(all.length, 'Lượt "Đổi thành Đúng"') + tile(Object.keys(qs).length, "Câu hỏi có đề xuất") + tile(cnt("moi"), "Đáp án chờ duyệt") + tile(cnt("da_duyet"), "Đã chấp nhận") + tile(cnt("tu_choi"), "Đã từ chối") + "</div>" +
+  return '<div class="statgrid">' + tile(all.length, 'Lượt "Đổi thành Đúng"') + tile(Object.keys(qs).length, "Câu hỏi có đề xuất") + tile(cnt("cho"), "Đáp án chờ duyệt") + tile(cnt("da_duyet"), "Đã chấp nhận") + tile(cnt("tu_choi"), "Đã từ chối") + "</div>" +
     '<div class="card"><div class="row between"><h3>Đề xuất đáp án (học viên bấm "Đổi thành Đúng")</h3><label class="field" style="min-width:180px;">Hiển thị<select id="sugFilter">' +
-    opt("moi", "Chờ duyệt") + opt("da_duyet", "Đã chấp nhận") + opt("tu_choi", "Đã từ chối") + opt("all", "Tất cả") + "</select></label></div>" +
+    opt("cho", "Chờ duyệt") + opt("moi", "Chưa xem") + opt("da_xem", "Đã xem, chưa duyệt") + opt("da_duyet", "Đã chấp nhận") + opt("tu_choi", "Đã từ chối") + opt("all", "Tất cả") + "</select></label></div>" +
     '<p class="small muted" style="margin:6px 0 10px;">Các câu trả lời giống nhau của nhiều học viên được gộp thành 1 dòng. Học viên đề xuất luôn được tính đúng với câu trả lời của chính mình. Chấp nhận = thêm câu trả lời vào danh sách đáp án đúng cho toàn bộ học viên; Từ chối = học viên khác vẫn chấm theo đáp án trong ngân hàng.</p>' +
     (rows ? '<div class="tablewrap"><table><thead><tr><th>Câu hỏi</th><th>Câu trả lời được đề xuất</th><th class="num">Số lượt</th><th>Học viên / thời gian</th><th>Xử lý</th></tr></thead><tbody>' + rows + "</tbody></table></div>" : '<p class="muted">Không có đề xuất ở mục này.</p>') + "</div>";
 }
@@ -4681,6 +4686,19 @@ function admFeedback(a) {
     (rows ? '<div class="tablewrap"><table><thead><tr><th>Thời gian / học viên</th><th>Nội dung</th><th>Hình ảnh</th><th>Trạng thái</th></tr></thead><tbody>' + rows + "</tbody></table></div>" : '<p class="muted">Không có góp ý ở mục này.</p>') + "</div>";
 }
 // admin mở tab Báo lỗi / Góp ý -> các mục "Chưa xem" đang hiện tự chuyển "Đã xem" (lưu máy chủ ở nền, không hiện thông báo)
+// Đề xuất đáp án: mở tab (các dòng chờ duyệt đang hiện) hoặc bấm "Mở câu hỏi" -> "Chưa xem" chuyển "Đã xem" (vẫn chờ duyệt)
+function admSugSeen(onlyIds) {
+  if (!S.adm) return;
+  var list = S.adm.dexuat || [], only = onlyIds ? {} : null; if (only) onlyIds.forEach(function (i) { only[i] = 1; });
+  if (!only) { var f = S.adm.sugFilter || "cho"; if (!(f === "cho" || f === "moi" || f === "all")) return; }
+  var todo = list.filter(function (x) { return x.TrangThai === "moi" && (!only || only[x.ID]); });
+  if (!todo.length) return;
+  todo.forEach(function (x) { x.TrangThai = "da_xem"; });
+  if (S.adm.ov && S.adm.ov.pending) S.adm.ov.pending.dexuat = list.filter(function (y) { return y.TrangThai === "moi"; }).length;
+  adm("adminSetStatus", { type: "dexuat", ids: todo.map(function (x) { return x.ID; }), status: "da_xem" })
+    .catch(function () { todo.forEach(function (x) { x.TrangThai = "moi"; }); if (S.view === "admin" && !el("modal-root").innerHTML) render(); });
+  if (S.view === "admin" && !el("modal-root").innerHTML) render();
+}
 function admAutoSeen(type) {
   if (!S.adm || S.view !== "admin" || S.adm.tab !== type) return;
   var list = S.adm[type] || [], todo = stFiltered(list, type === "baoloi" ? "fBl" : "fGy").filter(function (x) { return x.TrangThai === "moi"; });
