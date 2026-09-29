@@ -926,7 +926,7 @@ var LOGO_FULL = "";       // logo đầy đủ (màn hình đăng nhập)
 var APP_TITLE = "Luyện Thi CPA môn Tiếng Anh cùng Gonnapass";
 var HOTLINE = "0888.942.040/0888.942.041";
 var ORDER_URL = "https://docs.google.com/forms/d/e/1FAIpQLSe__8YmOusT_3Ez0A0Pj6Eccf2aUWVhgDP2vwvantuazAbBSA/viewform";
-function orderBtn(cls) { return '<a class="btn ' + (cls || "") + '" href="' + ORDER_URL + '" target="_blank" rel="noopener">Đặt sách CPA của Gonnapass</a>'; }
+function orderBtn(cls) { return '<a class="btn ' + (cls || "") + '" href="' + ORDER_URL + '" target="_blank" rel="noopener">Đặt mua sách CPA của Gonnapass</a>'; }
 if (API_URL.indexOf("__") === 0) API_URL = "";
 if (LOGO_SRC.indexOf("__") === 0) LOGO_SRC = "";
 if (LOGO_FULL.indexOf("__") === 0) LOGO_FULL = "";
@@ -1801,14 +1801,14 @@ function trialYearsText() { var y = TRIAL.years.slice().sort(); return y.length 
 function showLocked() {
   render();
   openModal('<div class="center"><div class="lock-badge">' + icon("lock") + '</div><h3 style="margin:10px 0 6px;">Tính năng dành cho học viên Gonnapass</h3>' +
-    '<p class="muted">Tài khoản dùng thử gồm <b>Ôn luyện ngẫu nhiên câu lẻ</b>, <b>Test nhanh</b>, <b>đề thi CPA năm ' + TRIAL_EXAM_YEARS.join(", ") + '</b> và <b>Tổng hợp dạng bài, kinh nghiệm học</b>. <a href="' + ORDER_URL + '" target="_blank" rel="noopener"><b>Đặt sách CPA Tiếng Anh của Gonnapass tại đây</b></a> để mở khoá toàn bộ: đề thi CPA 2010-2025 (120 phút), luyện theo dạng bài và mức độ, học từ mới, vở ghi, thống kê tiến bộ và email nhắc lịch học.</p>' +
-    '<p class="small" style="margin-top:8px;">Khi đặt sách, ghi đúng số điện thoại <b>' + esc(S.profile ? S.profile.phone : "") + '</b> để được kích hoạt tự động sau khi đơn hàng được xác nhận.</p></div>' +
+    '<p class="muted">Tài khoản dùng thử gồm <b>Ôn luyện ngẫu nhiên câu lẻ</b>, <b>Test nhanh</b>, <b>đề thi CPA năm ' + TRIAL_EXAM_YEARS.join(", ") + '</b> và <b>Tổng hợp dạng bài, kinh nghiệm học</b>. <a href="' + ORDER_URL + '" target="_blank" rel="noopener"><b>Đặt mua sách CPA Tiếng Anh của Gonnapass tại đây</b></a> để mở khoá toàn bộ: đề thi CPA 2010-2025 (120 phút), luyện theo dạng bài và mức độ, học từ mới, vở ghi, thống kê tiến bộ và email nhắc lịch học.</p>' +
+    '<p class="small" style="margin-top:8px;">Khi đặt mua sách, ghi đúng số điện thoại <b>' + esc(S.profile ? S.profile.phone : "") + '</b> để được kích hoạt tự động sau khi đơn hàng được xác nhận.</p></div>' +
     '<div class="row" style="justify-content:center;gap:8px;margin-top:14px;">' + orderBtn() + '<button class="btn secondary" data-act="closeModal">Để sau</button></div>');
 }
 ACT.trialContact = function () {
   S.menuOpen = false; render();
   openModal('<div class="center"><div class="lock-badge">' + icon("lock") + '</div><h3 style="margin:10px 0 6px;">Kích hoạt đầy đủ tính năng</h3>' +
-    '<p class="muted"><b>Đặt sách qua form của Gonnapass:</b> ghi đúng số điện thoại <b>' + esc(S.profile.phone) + '</b>, tài khoản được kích hoạt sau khi đơn hàng được xác nhận, không cần liên hệ thêm.</p>' +
+    '<p class="muted"><b>Đặt mua sách qua form của Gonnapass:</b> ghi đúng số điện thoại <b>' + esc(S.profile.phone) + '</b>, tài khoản được kích hoạt sau khi đơn hàng được xác nhận, không cần liên hệ thêm.</p>' +
     '<p class="muted" style="margin-top:8px;"><b>Đã mua sách qua kênh khác</b> (hoặc đặt bằng số điện thoại khác)? Nhắn số điện thoại <b>' + esc(S.profile.phone) + '</b> qua Hotline/Zalo <b>' + HOTLINE + '</b>.</p>' +
     '<p class="small muted" style="margin-top:8px;">Sau khi được kích hoạt, bạn nhận email thông báo và chỉ cần tải lại trang.</p></div>' +
     '<div class="row" style="justify-content:center;gap:8px;margin-top:14px;">' + orderBtn() + '<button class="btn secondary" data-act="closeModal">Đóng</button></div>');
@@ -1922,7 +1922,7 @@ function addSession(sess) {
   // poster bìa sách "Tài liệu ôn thi CPA Việt Nam - Ngoại ngữ" ở đầu khung giới thiệu màn hình đăng nhập
   function loginBook() {
     if (!BOOK_COVER || BOOK_COVER.indexOf("data:") !== 0) return "";
-    return '<a class="lb-wrap" href="' + ORDER_URL + '" target="_blank" rel="noopener" data-tip="Đặt sách CPA của Gonnapass">' +
+    return '<a class="lb-wrap" href="' + ORDER_URL + '" target="_blank" rel="noopener" data-tip="Đặt mua sách CPA của Gonnapass">' +
       '<span class="lb-glow"></span><span class="lb-book"><img src="' + BOOK_COVER + '" alt="Bìa sách Tài liệu ôn thi CPA Việt Nam - Ngoại ngữ của Gonnapass"></span>' +
       '<span class="lb-badge">Sách CPA 2026</span></a>';
   }
@@ -1960,7 +1960,7 @@ VIEWS.login = {
         authMsg() + authBtn("doSetPw", "Lưu mật khẩu và đăng nhập") + '<p class="small" style="margin-top:12px;"><a href="#" data-act="authMode" data-m="login">Quay lại đăng nhập</a></p>';
     } else {
       form = '<h2>Đăng nhập</h2><p class="small muted">Tên đăng nhập là số điện thoại bạn đã đăng ký.</p>' +
-        '<div class="login-tip">' + icon("info", "sm") + '<span><b>Nếu bạn đã mua sách của Gonnapass</b>, hãy nhập số điện thoại đã dùng khi đặt sách, để trống ô mật khẩu rồi bấm <b>Đăng nhập</b> để tạo mật khẩu mới và bắt đầu luyện thi.</span></div>' +
+        '<div class="login-tip">' + icon("info", "sm") + '<span><b>Nếu bạn đã mua sách của Gonnapass</b>, hãy nhập số điện thoại đã dùng khi đặt mua sách, để trống ô mật khẩu rồi bấm <b>Đăng nhập</b> để tạo mật khẩu mới và bắt đầu luyện thi.</span></div>' +
         authField("auPhone", "Số điện thoại", "tel", "VD: 0912345678", f.phone) + authField("auPass", "Mật khẩu", "password", "", "") +
         '<div class="row between" style="margin-top:6px;"><span></span><a href="#" class="small" data-act="authMode" data-m="forgot">Quên mật khẩu?</a></div>' +
         authMsg() + authBtn("doLogin", "Đăng nhập") +
@@ -2081,7 +2081,7 @@ var GNP_LINKS = {
   certs: [["Chứng chỉ hành nghề đại lý thuế", "https://gonnapass.com/chi-tiet-chung-chi/?id_certi=1"], ["Chứng chỉ Kế toán – Doanh nghiệp", "https://gonnapass.com/chi-tiet-chung-chi/?id_certi=2"],
     ["Chứng chỉ hành nghề kế toán – kiểm toán", "https://gonnapass.com/chi-tiet-chung-chi/?id_certi=3"], ["Chuyển đổi CPA", "https://gonnapass.com/chi-tiet-chung-chi/?id_certi=5"],
     ["Chứng chỉ ACCA", "https://gonnapass.com/chi-tiet-chung-chi/?id_certi=6"], ["Chứng chỉ hành chính – nhân sự", "https://gonnapass.com/chi-tiet-chung-chi/?id_certi=7"]],
-  guide: [["Đặt sách CPA của Gonnapass", ORDER_URL], ["Hướng dẫn thanh toán", "https://gonnapass.com/huong-dan-thanh-toan/"], ["Điều khoản sử dụng", "https://gonnapass.com/dieu-khoan-su-dung/"], ["Hỗ trợ", "https://gonnapass.com/faqs_cat/huong-dan-giao-dich/"]],
+  guide: [["Đặt mua sách CPA của Gonnapass", ORDER_URL], ["Hướng dẫn thanh toán", "https://gonnapass.com/huong-dan-thanh-toan/"], ["Điều khoản sử dụng", "https://gonnapass.com/dieu-khoan-su-dung/"], ["Hỗ trợ", "https://gonnapass.com/faqs_cat/huong-dan-giao-dich/"]],
   facebook: "https://www.facebook.com/gonnapasscom/", youtube: "https://www.youtube.com/watch?v=piyDRbHdJ0A"
 };
 function footLinks(list) { return "<ul>" + list.map(function (x) { return '<li><a href="' + x[1] + '" target="_blank" rel="noopener">' + esc(x[0]) + "</a></li>"; }).join("") + "</ul>"; }
@@ -2255,7 +2255,7 @@ VIEWS.home = {
       '<div class="hero-stat"><div class="n">' + hs.done.toLocaleString("vi-VN") + '</div><div class="l">câu bạn đã làm</div></div>' +
       '<div class="hero-stat"><div class="n">' + hs.acc + '</div><div class="l">tỷ lệ trả lời đúng</div></div></div></section>' +
       '<div class="home-book">' + gdBook("cpa") + "</div>" +
-      draftHtml + (trial ? '<div class="card tight trial-banner"><div><b>Bạn đang dùng tài khoản dùng thử.</b> Được mở: ' + esc(trialOpenText()) + '. Đặt sách CPA Tiếng Anh của Gonnapass (ghi đúng số điện thoại <b>' + esc(S.profile.phone) + '</b>) để được kích hoạt toàn bộ tính năng.</div><div class="row" style="gap:8px;flex-wrap:wrap;">' + orderBtn("sm") + '<button class="btn sm secondary" data-act="trialContact">Đã mua sách?</button></div></div>' : goalHtml) +
+      draftHtml + (trial ? '<div class="card tight trial-banner"><div><b>Bạn đang dùng tài khoản dùng thử.</b> Được mở: ' + esc(trialOpenText()) + '. Đặt mua sách CPA Tiếng Anh của Gonnapass (ghi đúng số điện thoại <b>' + esc(S.profile.phone) + '</b>) để được kích hoạt toàn bộ tính năng.</div><div class="row" style="gap:8px;flex-wrap:wrap;">' + orderBtn("sm") + '<button class="btn sm secondary" data-act="trialContact">Đã mua sách?</button></div></div>' : goalHtml) +
       MENU_GROUPS.map(function (g) {
         return '<div class="sec-title"><h3>' + g[1] + '</h3></div><div class="menu-grid">' + MENU.filter(function (m) { return m.g === g[0]; }).map(menuTile).join("") + "</div>";
       }).join("") + newsHtml();
@@ -2277,7 +2277,7 @@ VIEWS.examList = {
     return '<div class="card"><button class="backlink" data-act="goHome">' + icon("back", "sm") + " Về trang chủ</button>" +
       '<h2 style="margin:10px 0 6px;">Làm đề thi CPA theo từng năm</h2>' +
       '<p>Đề thi được sưu tầm từ năm 2010-2025.<br>Năm 2021 do ảnh hưởng của dịch Covid-19 nên kỳ thi CPA không được tổ chức.</p>' +
-      (isTrial() ? '<div class="notice small">Tài khoản dùng thử được làm đề thi năm <b>' + TRIAL_EXAM_YEARS.join(", ") + '</b>. <a href="' + ORDER_URL + '" target="_blank" rel="noopener">Đặt sách CPA của Gonnapass</a> để mở khoá đề thi tất cả các năm.</div>' : "") +
+      (isTrial() ? '<div class="notice small">Tài khoản dùng thử được làm đề thi năm <b>' + TRIAL_EXAM_YEARS.join(", ") + '</b>. <a href="' + ORDER_URL + '" target="_blank" rel="noopener">Đặt mua sách CPA của Gonnapass</a> để mở khoá đề thi tất cả các năm.</div>' : "") +
       '<p class="small muted">Kết quả các lần làm đề được lưu ở mục <b>Đánh giá sự tiến bộ</b>.</p>' +
       rows + "</div>" + (isTrial() ? "" : customExamListHtml());
   }
@@ -3485,7 +3485,7 @@ function gdPracticeBtn(cats) {
 function gdBook(variant) {
   var txt = variant === "cpa" ? "Bạn muốn ôn thi đúng trọng tâm và tiết kiệm thời gian? Gonnapass sẽ đồng hành cùng bạn vượt qua tất cả các môn thi CPA với bộ sách tự ôn thi bao gồm: phân tích cấu trúc đề các năm, chia sẻ kinh nghiệm ôn thi, tổng hợp kiến thức theo Đề cương ôn tập mới nhất và đề thi - giải chi tiết đề thi các năm gần nhất."
     : variant === "tips" ? "Muốn ôn đúng trọng tâm, tiết kiệm thời gian? Sách tự ôn thi CPA của Gonnapass tổng hợp đề thi các năm kèm lời giải chi tiết, học viên mua sách được kích hoạt toàn bộ tính năng website luyện thi này."
-    : variant === "years" ? "Muốn luyện đủ tất cả các dạng bài qua từng năm? Đặt sách CPA của Gonnapass để mở khoá toàn bộ đề thi 2010 - 2025 trên website, kèm đáp án và giải thích từng câu."
+    : variant === "years" ? "Muốn luyện đủ tất cả các dạng bài qua từng năm? Đặt mua sách CPA của Gonnapass để mở khoá toàn bộ đề thi 2010 - 2025 trên website, kèm đáp án và giải thích từng câu."
     : "Chinh phục mốc 50 điểm cùng sách tự ôn thi CPA của Gonnapass: đề thi các năm, lời giải chi tiết và tài khoản luyện đề đầy đủ tính năng trên website.";
   return '<div class="gd-book"><div class="gd-book-ic">' + icon("book") + '</div><div class="gd-book-t"><b>Sách ôn thi CPA của Gonnapass</b><span>' + txt + "</span></div>" + orderBtn("sm") + "</div>";
 }
