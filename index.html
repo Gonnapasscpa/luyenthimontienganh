@@ -742,6 +742,15 @@ input.wb-slot{min-width:255px;}
 .examq input.inl.wb-slot{min-width:255px; max-width:320px;}
 @media (max-width:640px){.examq input.inl.wb-slot{min-width:210px; max-width:100%;}}
 
+/* Kinh nghiệm ôn thi CPA: 1 phần chung ngắn gọn + phần từng môn */
+.tips-sec{margin:6px 0 22px}
+.tips-sec-h{display:flex;align-items:center;gap:10px;margin:8px 0 12px;font-size:18px;color:#002060;padding-bottom:8px;border-bottom:2px solid #e1e7f2}
+.tips-sec-h span{width:28px;height:28px;border-radius:50%;background:#002060;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px}
+.tips-more{margin-top:14px;border:1px solid #e1e7f2;border-radius:12px;padding:10px 14px;background:#fafbfe}
+.tips-more summary{cursor:pointer;font-weight:700;color:#002060}
+.sj-empty{padding:18px;border:1px dashed #c9d6ee;border-radius:12px;color:#5b6b82;display:flex;align-items:center;gap:8px}
+.sj-quick{margin-top:10px;padding:10px 12px;border-radius:10px;background:#fff5e8;border:1px solid #f5d6ad;font-size:14px}
+
 </style>
 </head>
 <body>
@@ -2004,17 +2013,17 @@ var MENU = [
   { g: "hoc", tone: "orange", act: "goNotebook", ic: "note", t: "Vở ghi của tôi", d: "Ghi chú công thức, mẫu câu, ngữ pháp và từ mới; tạo bài luyện từ những gì đã ghi." },
   { g: "hoc", tone: "violet", act: "goStats", ic: "chart", t: "Đánh giá sự tiến bộ", d: "Tổng hợp kết quả test theo từng dạng bài để bạn có kế hoạch học tập phù hợp." }
 ];
-MENU.push({ g: "bikip", tone: "orange", act: "goGuide", ic: "book", t: "Tổng hợp dạng bài và kinh nghiệm ôn thi môn Tiếng Anh", d: "Cấu trúc, thang điểm đề thi, các dạng bài qua từng năm 2010 - 2025 và kinh nghiệm ôn thi môn Tiếng Anh." },
-  { g: "bikip", tone: "green", act: "goTips", ic: "target", t: "Kinh nghiệm ôn thi CPA các môn khác", d: "Kinh nghiệm ôn tập và làm bài thi tự luận các môn Kế toán, Tài chính, Thuế, Luật, Phân tích tài chính từ những người đã thi đỗ." });
+MENU.push({ g: "bikip", tone: "green", act: "goTips", ic: "target", t: "Kinh nghiệm ôn thi CPA", d: "Kinh nghiệm chung khi ôn thi CPA và kinh nghiệm từng môn: Tiếng Anh, Kế toán, Kiểm toán, Tài chính, Thuế, Luật, Phân tích tài chính - cấu trúc đề, dạng bài các năm, lộ trình tự ôn." });
 var MENU_GROUPS = [["thi", "Làm đề thi"], ["luyen", "Luyện tập"], ["hoc", "Học từ vựng & theo dõi tiến bộ"], ["bikip", "Bí kíp ôn thi CPA"]];
 var TRIAL_OPEN = { startSingleMix: 1, startQuick: 1, goGuide: 1, goTips: 1, goExamList: 1 };
 // chức năng trên trang chủ -> màn hình cần mở khi admin cho tài khoản dùng thử dùng (Trang quản trị > Dùng thử)
 var TRIAL_FEATURE_VIEWS = { goExamList: ["examList", "exam", "results"], startRandomMix: ["exam", "results"], startQuick: ["exam", "results"], goSections: ["sections", "practice"],
-  startSingleMix: ["practice"], goReview: ["review", "practice"], goFlash: ["flash", "flashquiz"], goNotebook: ["notebook", "practice", "flashquiz"], goStats: ["stats", "results"], goGuide: ["guide"], goTips: ["tips"] };
+  startSingleMix: ["practice"], goReview: ["review", "practice"], goFlash: ["flash", "flashquiz"], goNotebook: ["notebook", "practice", "flashquiz"], goStats: ["stats", "results"], goGuide: ["guide", "tips"], goTips: ["tips", "guide"] };
 var TRIAL_BASE_VIEWS = { login: 1, loading: 1, home: 1, notices: 1 };
 function applyTrialFeatures(list) {
   if (!Array.isArray(list)) return;
   TRIAL_OPEN = {}; list.forEach(function (a) { if (TRIAL_FEATURE_VIEWS[a]) TRIAL_OPEN[a] = 1; });
+  if (TRIAL_OPEN.goTips) TRIAL_OPEN.goGuide = 1;   // Tiếng Anh nằm trong mục Kinh nghiệm ôn thi CPA
   TRIAL_VIEWS = Object.assign({}, TRIAL_BASE_VIEWS);
   Object.keys(TRIAL_FEATURE_VIEWS).forEach(function (a) {
     if (TRIAL_OPEN[a]) { TRIAL_FEATURE_VIEWS[a].forEach(function (v) { TRIAL_VIEWS[v] = 1; }); delete TRIAL_LOCKED[a]; }
@@ -3511,7 +3520,7 @@ ACT.practiceNoticeQ = function (t) { closeModal(); startPractice([ITEMS[t.getAtt
 // Nội dung (2) tóm tắt từ tài liệu "Kinh nghiem thi CPA.docx" do Gonnapass cung cấp (chia sẻ của người đã thi và giảng viên ôn thi)
 // =====================================================================================
 ACT.goTips = function () { logEvent("mo_chuc_nang", "bi_kip"); go("tips"); };
-ACT.goGuideTips = function () { S.guideTab = "kinhnghiem"; logEvent("mo_chuc_nang", "kinh_nghiem"); go("guide"); };
+ACT.goGuideTips = function () { S.guideTab = "kinhnghiem"; S.tipsSubj = "tienganh"; logEvent("mo_chuc_nang", "kinh_nghiem"); go("tips"); };
 function tipsEnglish() {
   var card = function (ic, title, body, cta) { return '<div class="gd-tip"><div class="gd-tip-ic">' + icon(ic) + '</div><div><h4>' + title + "</h4>" + body + (cta || "") + "</div></div>"; };
   return '<div class="gd-hero"><div class="gd-hero-n">50<span>/100</span></div><div><b>Mục tiêu của bạn: đạt từ 50 điểm.</b><br>Tiếng Anh là môn điều kiện của kỳ thi CPA, chỉ cần đạt là qua và không cộng vào tổng điểm các môn khác. Môn thi chỉ kiểm tra 2 kỹ năng <b>Đọc - Viết</b>, không có Nghe - Nói.</div></div>' +
@@ -3537,6 +3546,16 @@ function cpaPassNote() {
     '<div class="small muted">Theo tóm tắt quy định trong sách tự ôn thi CPA 2025 của Gonnapass. Vui lòng đối chiếu thông báo và quy chế thi chính thức của Bộ Tài chính cho từng kỳ thi.</div></div></div>';
 }
 var TIPS_DISCLAIMER = '<p class="small muted tips-disc">Nội dung mang tính tham khảo từ kinh nghiệm cá nhân và tài liệu của Gonnapass; cấu trúc đề, phạm vi và cách chấm có thể thay đổi theo từng năm. Vui lòng theo dõi thông báo và tài liệu ôn thi chính thức của Bộ Tài chính.</p>';
+var SUBJ_QUICK_LIST = [
+    ["Kế toán", "Năm nào cũng có câu tình huống: nêu ngắn gọn cơ sở, phương pháp liên quan trước (ví dụ các phương pháp điều chỉnh), rồi mới áp dụng vào nghiệp vụ cụ thể."],
+    ["Tài chính", "Bài tập dài, sai một bước dễ mất điểm các bước sau: làm chắc đến đâu hay đến đó. Nếu thời gian ôn hạn chế, luyện thật kỹ các dạng bài của một số chương hay ra bài tập."],
+    ["Thuế", "Bài tập thường không quá phức tạp nên dễ ghi điểm. Chú ý các thay đổi quy định về thuế GTGT, TNDN, TNCN, TTĐB trong khoảng 2 năm gần kỳ thi, đối chiếu với phạm vi tài liệu ôn thi Bộ Tài chính công bố."],
+    ["Luật", "Câu tình huống nên trình bày như một bài viết ngắn: nêu quy định liên quan, áp dụng vào tình huống, rồi kết luận."],
+    ["Phân tích tài chính", "Nắm chắc công thức và ý nghĩa các nhóm chỉ tiêu (khả năng thanh toán, cơ cấu vốn, hiệu quả hoạt động, khả năng sinh lời). Khi làm bài: ghi công thức trước rồi mới thay số, tính riêng từng chỉ tiêu, ghi rõ đơn vị và luôn kèm nhận xét, giải thích nguyên nhân - phần nhận xét cũng được tính điểm."]
+];
+var SUBJ_QUICK_KEY = { "Kế toán": "ketoan", "Tài chính": "taichinh", "Thuế": "thue", "Luật": "luat", "Phân tích tài chính": "phantich" };
+function subjQuickNote(key) { var x = SUBJ_QUICK_LIST.filter(function (y) { return SUBJ_QUICK_KEY[y[0]] === key; })[0]; return x ? x[1] : ""; }
+// Kinh nghiệm chung: nói ngắn gọn, phần chi tiết (6 lỗi, kỹ năng trình bày) thu gọn trong nút Xem thêm
 function tipsCPA() {
   var li = function (arr) { return '<ul class="gd-ul">' + arr.map(function (x) { return "<li>" + x + "</li>"; }).join("") + "</ul>"; };
   var study = [
@@ -3553,17 +3572,12 @@ function tipsCPA() {
     ["Lúng túng khi đề thiếu thông tin", "Mất nhiều thời gian vì đề không đủ dữ kiện để có một đáp án duy nhất.", "Nêu rõ giả định rồi làm theo giả định đó. Ví dụ hàng hoá tiêu dùng nội bộ không nói rõ mục đích: giả sử dùng cho sản xuất kinh doanh thì xử lý thuế GTGT theo hướng đó."],
     ["Cho ví dụ minh hoạ dài dòng", "Ví dụ minh hoạ cho một ý nhỏ thường chỉ được khoảng 1/4 - 2/4 điểm.", "Hỏi gì cho ví dụ đúng ý đó, ngắn gọn, trực tiếp."]
   ];
-  var subj = [
-    ["Kế toán", "Năm nào cũng có câu tình huống: nêu ngắn gọn cơ sở, phương pháp liên quan trước (ví dụ các phương pháp điều chỉnh), rồi mới áp dụng vào nghiệp vụ cụ thể."],
-    ["Tài chính", "Bài tập dài, sai một bước dễ mất điểm các bước sau: làm chắc đến đâu hay đến đó. Nếu thời gian ôn hạn chế, luyện thật kỹ các dạng bài của một số chương hay ra bài tập."],
-    ["Thuế", "Bài tập thường không quá phức tạp nên dễ ghi điểm. Chú ý các thay đổi quy định về thuế GTGT, TNDN, TNCN, TTĐB trong khoảng 2 năm gần kỳ thi, đối chiếu với phạm vi tài liệu ôn thi Bộ Tài chính công bố."],
-    ["Luật", "Câu tình huống nên trình bày như một bài viết ngắn: nêu quy định liên quan, áp dụng vào tình huống, rồi kết luận."],
-    ["Phân tích tài chính", "Nắm chắc công thức và ý nghĩa các nhóm chỉ tiêu (khả năng thanh toán, cơ cấu vốn, hiệu quả hoạt động, khả năng sinh lời). Khi làm bài: ghi công thức trước rồi mới thay số, tính riêng từng chỉ tiêu, ghi rõ đơn vị và luôn kèm nhận xét, giải thích nguyên nhân - phần nhận xét cũng được tính điểm."]
-  ];
+
   return '<div class="gd-hero"><div class="gd-hero-n">' + icon("target") + '</div><div><b>Kinh nghiệm thi CPA từ những người đã đi trước.</b><br>Tổng hợp các kinh nghiệm ôn tập và làm bài tự luận được nhiều anh chị đã thi đỗ và giảng viên ôn thi chia sẻ, giúp bạn quét tối đa số điểm với những kiến thức đã có.</div></div>' +
     cpaPassNote() +
     '<h3 style="margin:16px 0 10px;">Ôn thi hiệu quả</h3><div class="gd-tips two">' + study.map(function (x) { return '<div class="gd-tip"><div class="gd-tip-ic">' + icon(x[0]) + '</div><div><h4>' + x[1] + "</h4><p>" + x[2] + "</p></div></div>"; }).join("") + "</div>" +
-    '<h3 style="margin:18px 0 4px;">6 lỗi hay mất điểm khi làm bài và cách khắc phục</h3><p class="small muted" style="margin:0 0 10px;">Theo chia sẻ của một giảng viên ôn thi môn Thuế, áp dụng cho các môn thi tự luận.</p><div class="tips-errs">' +
+    '<details class="tips-more"><summary>Xem thêm: 6 lỗi hay mất điểm khi làm bài và kỹ năng trình bày bài thi tự luận</summary>' +
+    '<h3 style="margin:14px 0 4px;">6 lỗi hay mất điểm khi làm bài và cách khắc phục</h3><p class="small muted" style="margin:0 0 10px;">Theo chia sẻ của một giảng viên ôn thi môn Thuế, áp dụng cho các môn thi tự luận.</p><div class="tips-errs">' +
     errs.map(function (x, i) { return '<div class="tips-err"><div class="tips-err-h"><span>' + (i + 1) + "</span><b>" + x[0] + '</b></div><p class="small muted">' + x[1] + '</p><div class="tips-fix"><b>Cách khắc phục:</b> ' + x[2] + "</div></div>"; }).join("") + "</div>" +
     '<h3 style="margin:18px 0 10px;">Kỹ năng trình bày bài thi</h3><div class="gd-tip"><div class="gd-tip-ic">' + icon("edit") + "</div><div>" + li([
       "<b>Viết sai không bị trừ điểm, không viết thì không có điểm:</b> làm hết các câu, câu chưa chắc thì làm theo kinh nghiệm hoặc suy luận.",
@@ -3571,14 +3585,16 @@ function tipsCPA() {
       "<b>Trích dẫn văn bản:</b> nếu không nhớ chính xác điều khoản, số hiệu văn bản thì trình bày nội dung quy định, tránh ghi sai.",
       "<b>Bài tập:</b> mỗi bài làm trên một tờ giấy thi riêng để dễ bổ sung ý; làm bài chắc nhất trước.",
       "<b>Dành 5 - 10 phút cuối</b> để soát lại toàn bài."]) + "</div></div>" +
-    '<h3 style="margin:18px 0 10px;">Lưu ý theo từng môn</h3><div class="tips-subj">' + subj.map(function (x) { return '<div><b>' + x[0] + "</b><p>" + x[1] + "</p></div>"; }).join("") + "</div>" +
-    TIPS_DISCLAIMER + gdBook("cpa");
+    "</details>";
 }
 VIEWS.tips = {
   render: function () {
     return '<div class="card"><button class="backlink" data-act="goHome">' + icon("back", "sm") + " Về trang chủ</button>" +
-      '<div class="eyebrow-sm">Bí kíp ôn thi CPA</div><h2 style="margin:4px 0 4px;">Kinh nghiệm ôn thi CPA các môn khác</h2><p class="muted" style="margin-bottom:14px;">Cấu trúc đề thi, dạng bài qua các năm, kinh nghiệm làm bài và lộ trình tự ôn cho từng môn CPA, tổng hợp từ bộ sách tự ôn thi của Gonnapass. Chọn môn bạn muốn xem. Kinh nghiệm môn Tiếng Anh xem tại <a href="#" data-act="goGuideTips">Tổng hợp dạng bài và kinh nghiệm ôn thi môn Tiếng Anh</a>.</p>' +
-      sjPicker() + (sjCur() ? sjSubjectView(sjCur()) : tipsCPA()) + "</div>";
+      '<div class="eyebrow-sm">Bí kíp ôn thi CPA</div><h2 style="margin:4px 0 4px;">Kinh nghiệm ôn thi CPA</h2><p class="muted" style="margin-bottom:14px;">Kinh nghiệm chung khi ôn thi CPA, cùng cấu trúc đề thi, dạng bài qua các năm, kinh nghiệm làm bài và lộ trình tự ôn cho từng môn (Tiếng Anh và 6 môn chuyên môn), tổng hợp từ bộ sách tự ôn thi của Gonnapass.</p>' +
+      '<section class="tips-sec"><h3 class="tips-sec-h"><span>1</span> Kinh nghiệm chung khi ôn thi CPA</h3>' + tipsCPA() + "</section>" +
+      '<section class="tips-sec" id="tipsSubjSec"><h3 class="tips-sec-h"><span>2</span> Kinh nghiệm ôn thi từng môn</h3><p class="small muted" style="margin:-4px 0 10px;">Bấm vào môn để xem cấu trúc đề thi, dạng bài các năm, kinh nghiệm làm bài và lộ trình tự ôn của môn đó.</p>' +
+      sjPicker() + (S.tipsSubj === "tienganh" ? sjEnglishView() : sjCur() ? sjSubjectView(sjCur()) : '<div class="sj-empty">' + icon("target") + " Chọn một môn ở trên để xem kinh nghiệm ôn thi của môn đó.</div>") + "</section>" +
+      TIPS_DISCLAIMER + gdBook("cpa") + "</div>";
   }
 };
 
@@ -3589,8 +3605,8 @@ VIEWS.tips = {
 // =====================================================================================
 var SJ_TABS = [["cautruc", "Cấu trúc đề thi"], ["dangbai", "Dạng bài các năm"], ["kinhnghiem", "Kinh nghiệm & lộ trình"]];
 function sjList() { return typeof SUBJ_DATA !== "undefined" && Array.isArray(SUBJ_DATA) ? SUBJ_DATA : []; }
-function sjCur() { var k = S.tipsSubj || "chung"; return sjList().filter(function (d) { return d.key === k; })[0] || null; }
-ACT.tipsSubj = function (t) { S.tipsSubj = t.getAttribute("data-k"); S.tipsTab = "cautruc"; render(); window.scrollTo(0, 0); };
+function sjCur() { var k = S.tipsSubj || ""; return sjList().filter(function (d) { return d.key === k; })[0] || null; }
+ACT.tipsSubj = function (t) { var k = t.getAttribute("data-k"); S.tipsSubj = k; S.tipsTab = "cautruc"; render(); var sec = el("tipsSubjSec"); if (sec && sec.scrollIntoView && S.tipsSubj) sec.scrollIntoView({ block: "start" }); };
 ACT.tipsTab = function (t) { S.tipsTab = t.getAttribute("data-t"); render(); };
 function sjUl(arr) { return arr && arr.length ? '<ul class="gd-ul">' + arr.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>" : ""; }
 function sjLevel(l) {
@@ -3688,6 +3704,18 @@ function sjTips(d) {
   });
   return h || '<p class="muted">Sách chưa có phần kinh nghiệm cho môn này.</p>';
 }
+// Tiếng Anh nằm chung khung chọn môn: dùng nguyên nội dung của mục Tiếng Anh (08a_guide: gdStructure, gdYearsTab, tipsEnglish - không sửa)
+ACT.goGuide = function () { logEvent("mo_chuc_nang", "kinh_nghiem"); S.guideTab = S.guideTab || "cautruc"; S.tipsSubj = "tienganh"; go("tips"); };
+function sjEnglishView() {
+  var tab = S.guideTab || "cautruc";
+  var tabs = [["cautruc", "Cấu trúc & thang điểm"], ["dangbai", "Dạng bài các năm"], ["kinhnghiem", "Kinh nghiệm ôn thi"]];
+  var body = tab === "dangbai" ? gdYearsTab() : tab === "kinhnghiem" ? tipsEnglish() : gdStructure();
+  return '<div class="sj-head"><h3>Tiếng Anh</h3><span class="pill">Môn điều kiện - Chứng chỉ Kế toán viên, Kiểm toán viên</span></div>' +
+    '<p class="muted" style="margin:6px 0 0;">Cấu trúc đề thi CPA môn Tiếng Anh, các dạng bài qua từng năm và kinh nghiệm tự ôn thi từ đội ngũ Gonnapass.</p>' +
+    '<div class="chips gd-tabs" role="tablist" style="margin:14px 0 16px;">' + tabs.map(function (x) {
+      return '<button class="chip' + (tab === x[0] ? " on" : "") + '" role="tab" aria-selected="' + (tab === x[0]) + '" data-act="guideTab" data-t="' + x[0] + '">' + x[1] + "</button>";
+    }).join("") + "</div>" + body;
+}
 function sjSubjectView(d) {
   var tab = S.tipsTab || "cautruc";
   var body = tab === "dangbai" ? sjYears(d) : tab === "kinhnghiem" ? sjTips(d) : sjStructure(d);
@@ -3696,11 +3724,11 @@ function sjSubjectView(d) {
     '<div class="chips gd-tabs" role="tablist" style="margin:14px 0 16px;">' + SJ_TABS.map(function (x) {
       return '<button class="chip' + (tab === x[0] ? " on" : "") + '" role="tab" aria-selected="' + (tab === x[0]) + '" data-act="tipsTab" data-t="' + x[0] + '">' + x[1] + "</button>";
     }).join("") + "</div>" + body +
-    cpaPassNote() + '<p class="small muted" style="margin-top:14px;">Nguồn: sách tự ôn thi CPA 2025 môn ' + esc(d.full || d.name) + " của Gonnapass.</p>" + TIPS_DISCLAIMER + gdBook("cpa");
+    '<p class="small muted" style="margin-top:14px;">Nguồn: sách tự ôn thi CPA 2025 môn ' + esc(d.full || d.name) + " của Gonnapass.</p>";
 }
 function sjPicker() {
-  var cur = S.tipsSubj || "chung";
-  var items = [["chung", "Kinh nghiệm chung"]].concat(sjList().map(function (d) { return [d.key, d.name]; }));
+  var cur = S.tipsSubj || "";
+  var items = [["tienganh", "Tiếng Anh"]].concat(sjList().map(function (d) { return [d.key, d.name]; }));
   return '<div class="sj-pick" role="tablist">' + items.map(function (x) {
     return '<button class="sj-pick-b' + (cur === x[0] ? " on" : "") + '" role="tab" aria-selected="' + (cur === x[0]) + '" data-act="tipsSubj" data-k="' + x[0] + '">' + esc(x[1]) + "</button>";
   }).join("") + "</div>";
