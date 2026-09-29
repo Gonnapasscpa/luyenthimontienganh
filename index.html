@@ -911,6 +911,12 @@ input.wb-slot{min-width:255px;}
 .lg-feat small{margin-top:2px; display:block;}
 @media (min-width:721px) and (max-height:820px){ .lg-feat{row-gap:4px;} .lg-feat b{margin-bottom:1px;} }
 
+/* chống sao chép nội dung (29/09): không bôi đen được, ô nhập vẫn dùng bình thường; không in nội dung */
+body.nocopy #app{-webkit-user-select:none; -ms-user-select:none; user-select:none; -webkit-touch-callout:none;}
+body.nocopy #app input, body.nocopy #app textarea, body.nocopy #app select, body.nocopy #modal-root input, body.nocopy #modal-root textarea{-webkit-user-select:text; user-select:text;}
+body.nocopy #modal-root{-webkit-user-select:none; user-select:none;}
+@media print{ body.nocopy #app, body.nocopy #modal-root{display:none !important;} body.nocopy::after{content:"Nội dung thuộc bản quyền của Gonnapass - không hỗ trợ in."; display:block; padding:40px; font:16px Arial;} }
+
 </style>
 </head>
 <body>
@@ -1033,6 +1039,7 @@ var Backend = {
     payload = payload || {};
     payload.action = action;
     if (S.profile && S.profile.sess && !payload.sess) payload.sess = S.profile.sess;   // phiên đăng nhập
+    payload.device = deviceId(); payload.ua = uaShort();   // nhận biết thiết bị (giới hạn 2 thiết bị/tài khoản)
     if (this.mode !== "gas") return Promise.reject(new Error("no_server"));
     return fetch(API_URL, { method: "POST", body: JSON.stringify(payload), redirect: "follow" })
       .then(function (r) { return r.json(); })
@@ -1040,6 +1047,7 @@ var Backend = {
         if (!j || j.ok === false) {
           var e = new Error((j && j.error) || "server_error"); e.code = j && j.error; e.data = j;
           if (e.code === "session_invalid" && S.profile && action !== "login") sessionExpired();
+          if (e.code === "session_kicked" && S.profile) sessionExpired(KICK_MSG);
           throw e;
         }
         return j;
@@ -1067,10 +1075,23 @@ var TRIAL_VIEWS = { login: 1, loading: 1, home: 1, practice: 1, exam: 1, results
 var TRIAL_LOCKED = { goSections: 1, startRandomMix: 1, goReview: 1, goFlash: 1, goNotebook: 1, goStats: 1, openGoal: 1,
   openAdmin: 1, startCustomExam: 1, toggleMark: 1, addNoteFromItem: 1, reportError: 1, overridePrac: 1, overrideRes: 1, pracRedoWrong: 0 };
 function isTrial() { return !!(S.profile && (S.profile.status === "dung_thu" || S.profile.role === "trial")); }
-function sessionExpired() {
+var MAX_DEVICES = 2;
+var KICK_MSG = "Tài khoản của bạn vừa được đăng nhập trên thiết bị khác nên thiết bị này đã tự đăng xuất. Mỗi tài khoản chỉ dùng tối đa " + MAX_DEVICES + " thiết bị cùng lúc và dành riêng cho 1 học viên. Nếu không phải bạn đăng nhập, hãy đổi mật khẩu hoặc liên hệ Gonnapass.";
+// mã thiết bị ngẫu nhiên lưu trong trình duyệt (không chứa thông tin cá nhân)
+function deviceId() {
+  var d = null; try { d = localStorage.getItem("gnp:dev"); } catch (e) {}
+  if (!d || !/^[A-Za-z0-9]{12,40}$/.test(d)) { d = ""; var cs = "abcdefghijklmnopqrstuvwxyz0123456789"; for (var i = 0; i < 20; i++) d += cs.charAt(Math.floor(Math.random() * cs.length)); try { localStorage.setItem("gnp:dev", d); } catch (e) {} }
+  return d;
+}
+function uaShort() {
+  var u = navigator.userAgent || "", b = /Edg\//.test(u) ? "Edge" : /CocCoc/.test(u) ? "Cốc Cốc" : /Chrome\//.test(u) ? "Chrome" : /Firefox\//.test(u) ? "Firefox" : /Safari\//.test(u) ? "Safari" : "Trình duyệt";
+  var o = /Android/.test(u) ? "Android" : /iPhone|iPad/.test(u) ? "iOS" : /Windows/.test(u) ? "Windows" : /Mac OS/.test(u) ? "macOS" : /Linux/.test(u) ? "Linux" : "";
+  return b + (o ? " · " + o : "");
+}
+function sessionExpired(msg) {
   if (!S.profile || S._expiring) return; S._expiring = true;
   setTimeout(function () { S._expiring = false; }, 3000);
-  S.profile = null; lsSet("gnp:profile", null); S.loginErr = "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại."; go("login");
+  S.profile = null; lsSet("gnp:profile", null); S.loginErr = msg || "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại."; go("login");
 }
 var S = {
   profile: null,       // {phone, name, email, role}
@@ -1625,12 +1646,32 @@ function go(view, params, opts) {
   render();
   window.scrollTo(0, 0);
 }
+// chống sao chép nội dung đề/đáp án (29/09): khoá bôi đen, copy, cắt, chuột phải, kéo thả, in, lưu trang ở các màn hình học viên.
+// Ô nhập (input, textarea) vẫn gõ/dán bình thường. Trang quản trị và Vở ghi (nội dung của chính học viên) không khoá.
+var COPY_OK_VIEWS = { admin: 1, notebook: 1, login: 1, loading: 1 };
+function copyLocked() { return !COPY_OK_VIEWS[S.view]; }
+function inEditable(t) { return !!(t && t.closest && t.closest("input, textarea, select, [contenteditable=true]")); }
+var _copyToastAt = 0;
+function copyBlocked() { if (Date.now() - _copyToastAt > 3000) { _copyToastAt = Date.now(); toast("Nội dung thuộc bản quyền của Gonnapass, không thể sao chép."); } }
+(function () {
+  ["copy", "cut"].forEach(function (evn) { document.addEventListener(evn, function (e) { if (copyLocked() && !inEditable(e.target)) { e.preventDefault(); copyBlocked(); } }, true); });
+  document.addEventListener("contextmenu", function (e) { if (copyLocked() && !inEditable(e.target)) e.preventDefault(); }, true);
+  document.addEventListener("selectstart", function (e) { if (copyLocked() && !inEditable(e.target)) e.preventDefault(); }, true);
+  document.addEventListener("dragstart", function (e) { if (copyLocked() && !inEditable(e.target) && !(e.target.closest && e.target.closest("[draggable=true], .wb-chip, [data-act=wbPick]"))) e.preventDefault(); }, true);
+  document.addEventListener("keydown", function (e) {
+    if (!copyLocked() || !(e.ctrlKey || e.metaKey)) return;
+    var k = (e.key || "").toLowerCase();
+    if (k === "p" || k === "s" || k === "u") { e.preventDefault(); copyBlocked(); return; }
+    if ((k === "c" || k === "x" || k === "a") && !inEditable(e.target)) { e.preventDefault(); if (k !== "a") copyBlocked(); }
+  }, true);
+})();
 function render() {
   var v = VIEWS[S.view] || VIEWS.home;
   var wide = S.view === "admin" || S.view === "exam" || S.view === "results";
   var html = (S.view === "exam" ? "" : topbar(wide)) + '<div class="wrap' + (wide ? " wide" : "") + '">' + v.render() + "</div>" + (S.view === "home" || S.view === "login" ? siteFooter() : "");
   if (S.profile && S.view !== "login") { var fp = lsGet("gnp:fabpos", null); html += '<button class="fab" data-act="openFeedback" title="Góp ý (có thể kéo để di chuyển)"' + (fp ? ' style="left:' + fp.x + "px;top:" + fp.y + 'px;right:auto;bottom:auto;"' : "") + ">" + icon("chat", "sm") + '<span class="fabt"> Góp ý</span></button>'; }
   el("app").innerHTML = html;
+  document.body.classList.toggle("nocopy", copyLocked());
   if (isTrial() && (S.view === "guide" || S.view === "tips")) markTrialLocks();
   if (typeof wbStickyTop === "function") wbStickyTop();
   if (v.after) v.after();
@@ -4335,7 +4376,7 @@ function admStudents(a) {
   var ov = a.ov, sums = ov.summaries, f = a.stFilter || "", q = (a.stQ || "").toLowerCase();
   var cnt = { hoat_dong: 0, dung_thu: 0, khoa: 0 }; ov.students.forEach(function (s) { cnt[stState(s)]++; });
   var d1 = a.stFrom || "", d2 = a.stTo || "", sel = a.sel || (a.sel = {});
-  var list = ov.students.filter(function (s) { var c = (s.created || "").slice(0, 10); return (!f || stState(s) === f) && (!q || (s.name + " " + s.phone + " " + s.email).toLowerCase().indexOf(q) >= 0) && (!d1 || c >= d1) && (!d2 || c <= d2); })
+  var list = ov.students.filter(function (s) { var c = (s.created || "").slice(0, 10); return (!f || (f === "suspect" ? s.suspect : stState(s) === f)) && (!q || (s.name + " " + s.phone + " " + s.email).toLowerCase().indexOf(q) >= 0) && (!d1 || c >= d1) && (!d2 || c <= d2); })
     .sort(function (x, y) { return (y.lastVisit || y.created || "").localeCompare(x.lastVisit || x.created || ""); });
   var rows = list.map(function (s) {
     var m = sums[s.phone] || {}, st = stState(s);
@@ -4343,18 +4384,33 @@ function admStudents(a) {
     return '<tr class="click' + (sel[s.phone] ? " sel-row" : "") + '" data-act="admStudent" data-p="' + esc(s.phone) + '">' + ck + '<td><b>' + esc(s.name) + "</b>" + (s.role === "admin" ? ' <span class="pill accent">admin</span>' : "") + '<div class="small muted">' + esc(s.phone) + (s.email ? " · " + esc(s.email) : "") + "</div></td>" +
       "<td>" + statePill(st) + (st === "dung_thu" ? '<div style="margin-top:6px;"><button class="btn sm" data-act="admActivate" data-p="' + esc(s.phone) + '">Kích hoạt</button></div>' : "") + (s.hasPassword === false ? '<div class="small muted" style="margin-top:4px;">chưa tạo mật khẩu</div>' : "") + "</td>" +
       '<td class="small">' + esc(fmtVN((s.created || "").slice(0, 10))) + (s.source === "tu_dang_ky" ? "<br>tự đăng ký" : s.source === "admin_tao" ? "<br>admin tạo" : "") + '</td><td class="num">' + s.visits + '</td><td class="small">' + esc(fmtVN(s.lastVisit) || "-") + "</td>" +
-      '<td class="num">' + (m.attempts || 0) + '</td><td class="num">' + (m.attempts ? m.rate + "%" : "-") + '</td><td class="num">' + (m.minutes || 0) + '</td><td class="num">' + (m.exams ? m.avgScore : "-") + "</td></tr>";
+      '<td class="num">' + (m.attempts || 0) + '</td><td class="num">' + (m.attempts ? m.rate + "%" : "-") + '</td><td class="num">' + (m.minutes || 0) + '</td><td class="num">' + (m.exams ? m.avgScore : "-") + '</td><td class="num">' + devCell(s) + "</td></tr>";
   }).join("");
-  var fOpt = [["", "Tất cả (" + ov.students.length + ")"], ["hoat_dong", "Đã kích hoạt (" + cnt.hoat_dong + ")"], ["dung_thu", "Dùng thử (" + cnt.dung_thu + ")"], ["khoa", "Khoá (" + cnt.khoa + ")"]]
+  var fOpt = [["", "Tất cả (" + ov.students.length + ")"], ["hoat_dong", "Đã kích hoạt (" + cnt.hoat_dong + ")"], ["dung_thu", "Dùng thử (" + cnt.dung_thu + ")"], ["khoa", "Khoá (" + cnt.khoa + ")"], ["suspect", "Nghi dùng chung tài khoản (" + ov.students.filter(function (s) { return s.suspect; }).length + ")"]]
     .map(function (x) { return '<option value="' + x[0] + '"' + (f === x[0] ? " selected" : "") + ">" + x[1] + "</option>"; }).join("");
   return '<div class="statgrid">' + tile(cnt.hoat_dong, "Học viên đã kích hoạt") + tile(cnt.dung_thu, "Tài khoản dùng thử") + tile(ov.students.filter(function (s) { return stState(s) === "dung_thu" && (s.created || "").slice(0, 10) >= dayKey(new Date(Date.now() - 6 * 864e5)); }).length, "Đăng ký dùng thử 7 ngày qua") + "</div>" +
     '<div class="card"><div class="row between"><h3>Danh sách tài khoản</h3><div class="row"><button class="btn sm secondary" data-act="admExportStudents">Tải danh sách (Excel/CSV)</button><button class="btn sm secondary" data-act="admImportStudents">Nhập danh sách</button><button class="btn sm" data-act="admAddStudent">' + icon("plus", "sm") + " Thêm học viên</button></div></div>" +
     '<div class="grid cols-4" style="margin:10px 0;"><label class="field">Lọc<select id="stFilter">' + fOpt + '</select></label><label class="field">Tìm (tên, SĐT, email)<input type="search" id="stQ" value="' + esc(a.stQ || "") + '"></label>' +
     '<label class="field">Ngày tạo từ<input type="date" id="stFrom" value="' + esc(d1) + '"></label><label class="field">Ngày tạo đến<input type="date" id="stTo" value="' + esc(d2) + '"></label></div>' +
-    stBulkBar(list, sel) +
+    suspectNote(ov) + stBulkBar(list, sel) +
     '<p class="small muted" style="margin:0 0 10px;">Khách tự đăng ký là tài khoản <b>Dùng thử</b>. Khi khách mua sách, bấm <b>Kích hoạt</b>: hệ thống mở toàn bộ tính năng và tự gửi email thông báo. Bấm vào một dòng để xem chi tiết tiến độ.</p>' +
-    '<div class="tablewrap"><table><thead><tr><th class="c" style="width:34px;"><input type="checkbox" data-act="admStuChkAll" data-tip="Chọn / bỏ chọn tất cả học viên đang hiện (trừ admin)"' + (list.some(function (s) { return s.role !== "admin"; }) && list.every(function (s) { return s.role === "admin" || sel[s.phone]; }) ? " checked" : "") + '></th><th>Tài khoản</th><th>Trạng thái</th><th>Ngày tạo</th><th class="num">Lượt truy cập</th><th>Truy cập gần nhất</th><th class="num">Lượt làm câu</th><th class="num">% đúng</th><th class="num">Phút học</th><th class="num">Điểm TB</th></tr></thead><tbody>' + rows + "</tbody></table></div></div>";
+    '<div class="tablewrap"><table><thead><tr><th class="c" style="width:34px;"><input type="checkbox" data-act="admStuChkAll" data-tip="Chọn / bỏ chọn tất cả học viên đang hiện (trừ admin)"' + (list.some(function (s) { return s.role !== "admin"; }) && list.every(function (s) { return s.role === "admin" || sel[s.phone]; }) ? " checked" : "") + '></th><th>Tài khoản</th><th>Trạng thái</th><th>Ngày tạo</th><th class="num">Lượt truy cập</th><th>Truy cập gần nhất</th><th class="num">Lượt làm câu</th><th class="num">% đúng</th><th class="num">Phút học</th><th class="num">Điểm TB</th><th class="num" data-tip="Số thiết bị khác nhau đã đăng nhập trong 30 ngày / số lần bị tự đăng xuất do vượt giới hạn thiết bị">Thiết bị 30 ngày</th></tr></thead><tbody>' + rows + "</tbody></table></div></div>";
 }
+function devCell(s) {
+  if (s.role === "admin") return '<span class="small muted">-</span>';
+  var t = (s.devices30 || 0) + (s.kicks30 ? ' <span class="small muted">/ ' + s.kicks30 + " lần</span>" : "");
+  return s.suspect ? '<span class="pill danger" data-tip="Nghi dùng chung tài khoản">' + icon("alert", "sm") + " " + t + "</span>" : t;
+}
+function suspectNote(ov) {
+  var n = ov.students.filter(function (s) { return s.suspect; }).length, L = ov.limits || { maxDevices: 2, suspectDevices: 4, suspectKicks: 3 };
+  return '<p class="small muted" style="margin:0 0 10px;">Mỗi tài khoản đăng nhập tối đa <b>' + L.maxDevices + " thiết bị</b> cùng lúc (admin không giới hạn); đăng nhập thiết bị mới thì thiết bị cũ nhất tự đăng xuất. Tài khoản được đánh dấu <b>nghi dùng chung</b> khi trong 30 ngày có từ " + L.suspectDevices + " thiết bị khác nhau hoặc bị tự đăng xuất từ " + L.suspectKicks + " lần" + (n ? ' - hiện có <b style="color:var(--danger,#c0392b);">' + n + " tài khoản</b> (chọn bộ lọc \"Nghi dùng chung\")." : ".") + "</p>";
+}
+ACT.admLogoutAll = function (t) {
+  var p = t.getAttribute("data-p");
+  confirmBox("Đăng xuất tài khoản <b>" + esc(p) + "</b> khỏi mọi thiết bị? Học viên cần đăng nhập lại (mật khẩu không đổi).", "Đăng xuất hết", function () {
+    adm("adminLogoutAll", { target: p }).then(function (r) { toast("Đã đăng xuất " + (r.count || 0) + " thiết bị"); }).catch(function () { toast("Chưa thực hiện được, vui lòng thử lại"); });
+  });
+};
 function stBulkBar(list, sel) {
   var n = Object.keys(sel).filter(function (p) { return sel[p]; }).length, vis = list.filter(function (s) { return s.role !== "admin"; }).length;
   return '<div class="bulkbar row between"><span class="small"><b>' + n + "</b> học viên đang chọn" + (n ? ' · <a href="#" data-act="admStuClear">Bỏ chọn</a>' : "") + '</span><span class="row" style="gap:6px;flex-wrap:wrap;">' +
@@ -4486,7 +4542,8 @@ ACT.admStudent = function (t) {
       (exPts.length ? '<h4 style="margin:10px 0 4px;">Điểm các bài thi gần đây (thang 100)</h4>' + svgLine(exPts) : "") +
       '<h4 style="margin:10px 0 8px;">Kết quả theo dạng bài</h4>' + (bars || '<p class="muted small">Chưa có dữ liệu.</p>') +
       '<h4 style="margin:12px 0 8px;">Lịch sử làm bài</h4>' + (sess ? '<div class="tablewrap"><table><thead><tr><th>Thời gian</th><th>Loại</th><th>Nội dung</th><th>Kết quả</th></tr></thead><tbody>' + sess + "</tbody></table></div>" : '<p class="muted small">Chưa có.</p>') +
-      '<div class="row end" style="margin-top:12px;"><button class="btn secondary" data-act="admAddStudent" data-p="' + esc(s.phone) + '">Sửa thông tin / khoá</button><button class="btn" data-act="closeModal">Đóng</button></div>';
+      (s.suspect ? '<div class="notice" style="margin-top:10px;">' + icon("alert", "sm") + ' <b>Nghi dùng chung tài khoản:</b> ' + s.devices30 + ' thiết bị khác nhau, ' + s.kicks30 + ' lần bị tự đăng xuất trong 30 ngày. Có thể liên hệ học viên, bấm <b>Đăng xuất mọi thiết bị</b> hoặc <b>Khoá</b> tài khoản.</div>' : '<p class="small muted" style="margin-top:10px;">Thiết bị 30 ngày: ' + (s.devices30 || 0) + ' · bị tự đăng xuất: ' + (s.kicks30 || 0) + ' lần.</p>') +
+      '<div class="row end" style="margin-top:12px;"><button class="btn secondary" data-act="admLogoutAll" data-p="' + esc(s.phone) + '">Đăng xuất mọi thiết bị</button><button class="btn secondary" data-act="admAddStudent" data-p="' + esc(s.phone) + '">Sửa thông tin / khoá</button><button class="btn" data-act="closeModal">Đóng</button></div>';
   }).catch(function () { closeModal(); toast("Không tải được dữ liệu học viên"); });
 };
 // ---- sửa câu hỏi
