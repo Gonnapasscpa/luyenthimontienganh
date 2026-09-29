@@ -815,6 +815,26 @@ input.wb-slot{min-width:255px;}
   .login-form input{padding:13px 14px; font-size:15.5px;}
 }
 
+/* khung đăng nhập to hơn nữa + poster sách lớn, rõ, nổi bật (29/09 v3) */
+@media (min-width:721px){
+  .login-shell{width:min(1240px, calc(100vw - 48px)); grid-template-columns:1.12fr 1fr; min-height:740px; border-radius:24px;}
+  .login-side{padding:52px 48px 48px;}
+  .lb-wrap{width:clamp(250px, 23vw, 330px);}
+  .lb-book{transform:rotateY(-8deg) rotateX(1deg); box-shadow:22px 28px 44px rgba(0,0,0,.5), 2px 2px 0 rgba(255,255,255,.14);}
+  .lb-glow{width:clamp(360px, 32vw, 470px); height:clamp(360px, 32vw, 470px); background:radial-gradient(closest-side, rgba(242,140,27,.42), rgba(242,140,27,0));}
+  .lb-badge{font-size:13px; padding:7px 13px; right:-24px; top:18px;}
+  .login-side h1{font-size:28px;}
+  .login-side .eyebrow{font-size:12px;}
+  .lg-feats{max-width:460px;}
+  .login-form{padding:56px 60px;}
+  .login-form h2{font-size:28px;}
+  .login-form label, .login-form .field{font-size:14.5px;}
+  .login-form input{padding:14px 16px; font-size:16px;}
+  .login-form .btn{padding:15px 18px; font-size:16.5px;}
+  .login-tip{font-size:14.5px;}
+}
+@media (min-width:721px){ .lg-text{margin-top:40px;} .login-side{gap:0;} }
+
 </style>
 </head>
 <body>
