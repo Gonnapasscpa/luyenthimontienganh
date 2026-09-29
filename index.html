@@ -1927,11 +1927,10 @@ ACT.doForgot = function () {
 };
 ACT.doSetPw = function () {
   var f = readAuthForm(), pw = modalVal("auPass"), pw2 = modalVal("auPass2");
-  if (f.hasEmail && !f.email) { S.loginErr = "Vui lòng nhập email đã đăng ký."; return render(); }
   if (pw.length < 6) { S.loginErr = AUTH_ERR.pass_short; return render(); }
   if (pw !== pw2) { S.loginErr = "Hai lần nhập mật khẩu chưa giống nhau."; return render(); }
   S.loginBusy = true; S.loginErr = null; render();
-  Backend.call("setFirstPassword", { phone: f.phone, email: f.email, password: pw }).then(function (r) { authOk(r); toast("Đã tạo mật khẩu. Lần sau đăng nhập bằng số điện thoại và mật khẩu này."); }).catch(authFail);
+  Backend.call("setFirstPassword", { phone: f.phone, password: pw }).then(function (r) { authOk(r); toast("Đã tạo mật khẩu. Lần sau đăng nhập bằng số điện thoại và mật khẩu này."); }).catch(authFail);
 };
 function authenticate(phone) {
   if (Backend.mode === "db") return Backend.dbGet("allowlist/" + phone).then(function (r) { return r && r.name ? { phone: phone, name: r.name, email: r.email || "", role: r.role || "hocvien" } : null; });
