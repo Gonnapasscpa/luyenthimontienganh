@@ -780,6 +780,18 @@ input.wb-slot{min-width:255px;}
 .lg-feat small{font-size:11.5px; line-height:1.4; color:rgba(255,255,255,.7);}
 @media (max-width:720px){ .login-side h1{font-size:20px; white-space:normal;} .lg-feats{display:none;} }
 
+/* ---------- hướng dẫn sử dụng từng chức năng trang chủ (29/09) ---------- */
+.mh-q{position:absolute; right:10px; bottom:10px; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; color:var(--muted,#64748b); background:var(--surface-2,#f1f5f9); border:1px solid var(--line); cursor:pointer; z-index:2;}
+.mh-q:hover{color:#fff; background:#002060; border-color:#002060;}
+.mh-pop{display:none; position:absolute; left:12px; right:12px; top:calc(100% - 6px); z-index:40; padding:12px 14px; border-radius:10px; text-align:left;
+  background:#0f1d3d; color:#fff; font-size:13px; line-height:1.5; box-shadow:0 12px 28px rgba(0,0,0,.28); pointer-events:none;}
+.mh-pop::before{content:""; position:absolute; top:-6px; left:28px; width:12px; height:12px; background:#0f1d3d; transform:rotate(45deg);}
+.mh-pop b{display:flex; align-items:center; gap:6px; color:#f5a54a; font-size:12.5px; margin-bottom:4px;}
+.mh-pop ol, .mh-modal ol{margin:0; padding-left:18px;} .mh-pop li{margin:2px 0; color:rgba(255,255,255,.92);}
+.mh-modal{background:var(--surface-2,#f1f5f9); border-radius:10px; padding:12px 14px;} .mh-modal li{margin:4px 0;}
+@media (hover:hover) and (min-width:721px){ .menu-btn:hover{z-index:41;} .menu-btn:hover .mh-pop{display:block;} }
+
 </style>
 </head>
 <body>
@@ -2052,6 +2064,28 @@ var MENU = [
   { g: "hoc", tone: "violet", act: "goStats", ic: "chart", t: "Đánh giá sự tiến bộ", d: "Tổng hợp kết quả test theo từng dạng bài để bạn có kế hoạch học tập phù hợp." }
 ];
 MENU.push({ g: "bikip", tone: "green", act: "goTips", ic: "target", t: "Kinh nghiệm ôn thi CPA", d: "Kinh nghiệm chung khi ôn thi CPA và kinh nghiệm từng môn: Tiếng Anh, Kế toán, Kiểm toán, Tài chính, Thuế, Luật, Phân tích tài chính - cấu trúc đề, dạng bài các năm, lộ trình tự ôn." });
+// hướng dẫn sử dụng ngắn cho từng chức năng trang chủ: hiện khi di chuột vào ô (máy tính) hoặc bấm nút "?" (điện thoại)
+var MENU_HELP = {
+  goExamList: ["Chọn năm và đề muốn làm, bấm bắt đầu.", "Làm trong 120 phút; hết giờ hệ thống tự nộp bài.", "Bài làm dở được lưu lại để làm tiếp; nộp bài để xem điểm, đáp án và giải thích."],
+  startRandomMix: ["Bấm để tạo một đề mới đủ các phần như đề thi thật.", "Mỗi lần bấm là một đề khác nhau.", "Làm và nộp bài như đề thi để xem điểm và giải thích."],
+  startQuick: ["Bấm để bắt đầu 20 câu trong 15 phút.", "Hết giờ hệ thống tự nộp bài.", "Phù hợp khi bạn chỉ có ít thời gian trong ngày."],
+  goSections: ["Chọn 1 hoặc nhiều dạng bài muốn luyện.", "Bấm bắt đầu luyện, trả lời rồi bấm Kiểm tra để xem đáp án.", "Nên chọn các dạng có tỉ lệ đúng thấp trong Đánh giá sự tiến bộ."],
+  startSingleMix: ["Bấm để nhận khoảng 20 câu trộn các dạng bài.", "Trả lời từng câu, bấm Kiểm tra để xem đáp án và giải thích ngay.", "Hệ thống ưu tiên câu bạn chưa làm."],
+  goReview: ["Câu trả lời sai và câu bạn đánh dấu phân vân được tự động đưa vào đây.", "Chọn câu hoặc nhóm câu muốn ôn rồi bấm luyện lại."],
+  goFlash: ["Lọc nhóm từ muốn học ở phía trên.", "Chọn cách học: Học từ mới (bấm vào thẻ để lật), Luyện tập từ mới hoặc xem Danh sách tất cả các từ mới."],
+  goNotebook: ["Khi làm bài, bấm nút Vở ghi ở từng câu để lưu ghi chú.", "Vào đây để xem, sửa, lọc theo loại ghi chú và tải file Word.", "Có thể tạo bài luyện từ những gì đã ghi."],
+  goStats: ["Xem điểm các lượt làm đề và tỉ lệ đúng theo từng dạng bài.", "Dạng bài có tỉ lệ đúng thấp nên luyện thêm ở Luyện theo dạng bài."],
+  goTips: ["Đọc phần Kinh nghiệm chung khi ôn thi CPA.", "Bấm tên môn để xem cấu trúc đề, dạng bài các năm, kinh nghiệm và lộ trình ôn của môn đó."]
+};
+function menuHelpHtml(m) {
+  var h = MENU_HELP[m.act]; if (!h) return "";
+  return '<span class="mh-pop" role="tooltip"><b>' + icon("info", "sm") + " Cách sử dụng</b><ol>" + h.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ol></span>";
+}
+ACT.tileHelp = function (t, ev) {
+  if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+  var m = MENU.filter(function (x) { return x.act === t.getAttribute("data-k"); })[0]; if (!m || !MENU_HELP[m.act]) return;
+  openModal('<h3 style="margin-top:0;">' + esc(m.t) + '</h3><p class="small muted">' + esc(m.d) + '</p><div class="mh-modal"><b>Cách sử dụng</b><ol>' + MENU_HELP[m.act].map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + '</ol></div><div class="row" style="justify-content:flex-end;margin-top:14px;"><button class="btn" data-act="closeModal">Đã hiểu</button></div>');
+};
 var MENU_GROUPS = [["thi", "Làm đề thi"], ["luyen", "Luyện tập"], ["hoc", "Học từ vựng & theo dõi tiến bộ"], ["bikip", "Bí kíp ôn thi CPA"]];
 var TRIAL_OPEN = { startSingleMix: 1, startQuick: 1, goGuide: 1, goTips: 1, goExamList: 1 };
 // chức năng trên trang chủ -> màn hình cần mở khi admin cho tài khoản dùng thử dùng (Trang quản trị > Dùng thử)
@@ -2074,7 +2108,7 @@ function trialOpenText() {
 }
 function menuTile(m) {
   var locked = isTrial() && !TRIAL_OPEN[m.act];
-  return '<button class="menu-btn tone-' + m.tone + (locked ? " locked" : "") + '" data-act="' + m.act + '">' + (locked ? '<span class="lock-tag">' + icon("lock", "sm") + " Học viên</span>" : "") + '<span class="ic">' + icon(m.ic) + '</span><span><span class="t">' + esc(m.t) + '</span><span class="d">' + esc(m.d) + '</span></span><span class="go">' + icon("next", "sm") + "</span></button>";
+  return '<button class="menu-btn tone-' + m.tone + (locked ? " locked" : "") + '" data-act="' + m.act + '">' + (locked ? '<span class="lock-tag">' + icon("lock", "sm") + " Học viên</span>" : "") + '<span class="ic">' + icon(m.ic) + '</span><span><span class="t">' + esc(m.t) + '</span><span class="d">' + esc(m.d) + '</span></span><span class="go">' + icon("next", "sm") + "</span>" + (MENU_HELP[m.act] ? '<span class="mh-q" data-act="tileHelp" data-k="' + m.act + '" title="Cách sử dụng" aria-label="Cách sử dụng">?</span>' + menuHelpHtml(m) : "") + "</button>";
 }
 function homeStats() {
   var pool = ALL.filter(practiceable), done = 0, att = 0, cor = 0;
