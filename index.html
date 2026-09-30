@@ -4377,7 +4377,9 @@ function admStudents(a) {
   var cnt = { hoat_dong: 0, dung_thu: 0, khoa: 0 }; ov.students.forEach(function (s) { cnt[stState(s)]++; });
   var d1 = a.stFrom || "", d2 = a.stTo || "", sel = a.sel || (a.sel = {});
   var list = ov.students.filter(function (s) { var c = (s.created || "").slice(0, 10); return (!f || (f === "suspect" ? s.suspect : stState(s) === f)) && (!q || (s.name + " " + s.phone + " " + s.email).toLowerCase().indexOf(q) >= 0) && (!d1 || c >= d1) && (!d2 || c <= d2); })
-    .sort(function (x, y) { return (y.lastVisit || y.created || "").localeCompare(x.lastVisit || x.created || ""); });
+    // 30/09: admin lên đầu; học viên xếp theo ngày tạo từ cũ nhất đến mới nhất (cùng ngày giữ thứ tự trong Google Sheet)
+    .sort(function (x, y) { var isA = function (u) { return /^\s*(admin|quản trị|quan tri|quản trị viên)\s*$/i.test(u.role || ""); }, ax = isA(x) ? 0 : 1, ay = isA(y) ? 0 : 1; if (ax !== ay) return ax - ay;
+      return (x.created || "").localeCompare(y.created || "") || ov.students.indexOf(x) - ov.students.indexOf(y); });
   var rows = list.map(function (s) {
     var m = sums[s.phone] || {}, st = stState(s);
     var ck = s.role === "admin" ? '<td class="c"><span class="small muted" data-tip="Không xoá tài khoản admin">-</span></td>' : '<td class="c"><input type="checkbox" class="stSel" data-act="admStuChk" data-p="' + esc(s.phone) + '"' + (sel[s.phone] ? " checked" : "") + "></td>";
