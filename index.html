@@ -1075,8 +1075,8 @@ var TRIAL_VIEWS = { login: 1, loading: 1, home: 1, practice: 1, exam: 1, results
 var TRIAL_LOCKED = { goSections: 1, startRandomMix: 1, goReview: 1, goFlash: 1, goNotebook: 1, goStats: 1, openGoal: 1,
   openAdmin: 1, startCustomExam: 1, toggleMark: 1, addNoteFromItem: 1, reportError: 1, overridePrac: 1, overrideRes: 1, pracRedoWrong: 0 };
 function isTrial() { return !!(S.profile && (S.profile.status === "dung_thu" || S.profile.role === "trial")); }
-var MAX_DEVICES = 2;
-var KICK_MSG = "Tài khoản của bạn vừa được đăng nhập trên thiết bị khác nên thiết bị này đã tự đăng xuất. Mỗi tài khoản chỉ dùng tối đa " + MAX_DEVICES + " thiết bị cùng lúc và dành riêng cho 1 học viên. Nếu không phải bạn đăng nhập, hãy đổi mật khẩu hoặc liên hệ Gonnapass.";
+var MAX_DEVICES = 1;
+var KICK_MSG = "Tài khoản của bạn vừa được đăng nhập trên thiết bị khác nên thiết bị này đã tự đăng xuất. Mỗi tài khoản dành riêng cho 1 học viên và chỉ dùng trên 1 thiết bị tại một thời điểm. Nếu không phải bạn đăng nhập, hãy đổi mật khẩu hoặc liên hệ Gonnapass.";
 // mã thiết bị ngẫu nhiên lưu trong trình duyệt (không chứa thông tin cá nhân)
 function deviceId() {
   var d = null; try { d = localStorage.getItem("gnp:dev"); } catch (e) {}
@@ -1188,6 +1188,17 @@ var Sync = {
 function logEvent(e, d) { Sync.events.push({ t: Date.now(), e: e, d: d || "" }); if (Backend.mode === "gas") Sync.schedule(); }
 setInterval(function () { if (S.profile && (Sync.dirty || Sync.events.length)) Sync.push(); }, 45000);
 document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden" && S.profile) Sync.push(); });
+// 30/09: kiểm tra phiên định kỳ để thiết bị cũ bị đăng xuất ngay khi tài khoản đăng nhập ở thiết bị thứ 3 (không phải chờ lần lưu dữ liệu tiếp theo)
+var _sessCheckAt = 0;
+function sessionCheck(force) {
+  if (Backend.mode !== "gas" || !S.profile || !S.profile.sess || S.view === "login") return;
+  if (!force && Date.now() - _sessCheckAt < 20000) return;
+  _sessCheckAt = Date.now();
+  Backend.call("userKVGet", { key: "sess_ping" }).catch(function () {});   // lỗi session_kicked / session_invalid được Backend.call xử lý (về màn hình đăng nhập)
+}
+setInterval(function () { if (document.visibilityState === "visible") sessionCheck(true); }, 60000);
+document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") sessionCheck(true); });
+window.addEventListener("focus", function () { sessionCheck(false); });
 
 // ---- thời gian học (đếm khi đang ở màn hình học và có thao tác trong 2 phút gần nhất)
 var STUDY_VIEWS = { exam: 1, practice: 1, flash: 1, flashquiz: 1, notebook: 1, results: 1 };
@@ -1636,7 +1647,7 @@ var SCREEN_NAMES = { login: "Đăng nhập", home: "Trang chủ", examList: "Ch�
 // lịch sử màn hình để nút "Quay lại" trở về màn hình ngay trước đó (không tính màn hình làm bài/luyện tập)
 var NO_BACK = { loading: 1, login: 1, exam: 1, practice: 1, flashquiz: 1 };
 S.nav = [];
-function go(view, params, opts) {
+function go(view, params, opts) { if (typeof sessionCheck === "function") setTimeout(function () { sessionCheck(false); }, 0);
   if (isTrial() && !TRIAL_VIEWS[view]) { showLocked(); return; }
   if (S.view === "exam" && view !== "exam" && S.exam && !S.exam.submitted) examSaveDraft();
   if (view === "home" || view === "login") S.nav = [];
@@ -4404,8 +4415,8 @@ function devCell(s) {
   return s.suspect ? '<span class="pill danger" data-tip="Nghi dùng chung tài khoản">' + icon("alert", "sm") + " " + t + "</span>" : t;
 }
 function suspectNote(ov) {
-  var n = ov.students.filter(function (s) { return s.suspect; }).length, L = ov.limits || { maxDevices: 2, suspectDevices: 4, suspectKicks: 3 };
-  return '<p class="small muted" style="margin:0 0 10px;">Mỗi tài khoản đăng nhập tối đa <b>' + L.maxDevices + " thiết bị</b> cùng lúc (admin không giới hạn); đăng nhập thiết bị mới thì thiết bị cũ nhất tự đăng xuất. Tài khoản được đánh dấu <b>nghi dùng chung</b> khi trong 30 ngày có từ " + L.suspectDevices + " thiết bị khác nhau hoặc bị tự đăng xuất từ " + L.suspectKicks + " lần" + (n ? ' - hiện có <b style="color:var(--danger,#c0392b);">' + n + " tài khoản</b> (chọn bộ lọc \"Nghi dùng chung\")." : ".") + "</p>";
+  var n = ov.students.filter(function (s) { return s.suspect; }).length, L = ov.limits || { maxDevices: 1, suspectDevices: 4, suspectKicks: 10 };
+  return '<p class="small muted" style="margin:0 0 10px;">Mỗi tài khoản chỉ dùng <b>' + L.maxDevices + " thiết bị</b> tại một thời điểm (admin không giới hạn); đăng nhập thiết bị khác thì thiết bị đang dùng tự đăng xuất. Tài khoản được đánh dấu <b>nghi dùng chung</b> khi trong 30 ngày có từ " + L.suspectDevices + " thiết bị khác nhau hoặc bị tự đăng xuất từ " + L.suspectKicks + " lần" + (n ? ' - hiện có <b style="color:var(--danger,#c0392b);">' + n + " tài khoản</b> (chọn bộ lọc \"Nghi dùng chung\")." : ".") + "</p>";
 }
 ACT.admLogoutAll = function (t) {
   var p = t.getAttribute("data-p");
