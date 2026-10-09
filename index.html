@@ -1550,8 +1550,9 @@ function bestCandidate(user, cands) {
 }
 function contentToks(s) { return toks(s).filter(function (t) { return t.length > 1 && !STOP_EN[t] && !STOP_VI[t]; }); }
 function overlapRatio(user, model) {
-  var u = {}; contentToks(user).forEach(function (t) { u[t] = 1; });
-  var m = contentToks(model); if (!m.length) return 0;
+  // 09/10/2026: so khớp sau khi gộp từ đồng nghĩa và quy từ tiếng Anh về gốc (03b_synonyms.js)
+  var u = {}; synToks(user).forEach(function (t) { u[t] = 1; });
+  var m = synToks(model); if (!m.length) return 0;
   var hit = 0; m.forEach(function (t) { if (u[t]) hit++; });
   return hit / m.length;
 }
@@ -1606,7 +1607,9 @@ function grade(it, raw) {
     // chỉ Đúng/Sai: khớp đủ ý chính -> điểm tối đa (kèm cảnh báo nếu khác bản dịch mẫu), chưa đủ -> 0 điểm
     if (exact) { res.ratio = 1; return res; }
     var best = 0, bc = res.best;
-    cands.forEach(function (c) { var r = overlapRatio(ans, c); if (r > best) { best = r; bc = c; } });
+    var contra = true;
+    cands.forEach(function (c) { var ct = contradicts(ans, c), r = ct ? 0 : overlapRatio(ans, c); if (!ct) contra = false; if (r > best) { best = r; bc = c; } });
+    res.contra = contra;
     res.best = bc; res.ratio = best;
     if (best >= TRANS_PASS) { res.score = 1; res.status = "ok"; res.warn = WARN_TRANS; }
     else { res.score = 0; res.status = "bad"; }
@@ -1618,6 +1621,7 @@ function statusText(it, g) {
   if (g.status === "empty") return "Chưa trả lời";
   if (it.type === "translation") {
     if (g.status === "ok") return g.ratio >= 1 ? "Chính xác" : "Đúng (thể hiện đủ ý chính của bản dịch mẫu)";
+    if (g.contra) return "Chưa đúng: bản dịch có từ mang nghĩa ngược (hoặc thêm/thiếu từ phủ định như không/not) so với bản dịch mẫu";
     return "Chưa đúng: bản dịch còn thiếu nhiều ý chính so với bản dịch mẫu";
   }
   if (g.status === "ok") return "Chính xác";
@@ -1634,6 +1638,199 @@ function pointsTable(items) {
   var pts = {};
   Object.keys(byG).forEach(function (g) { var w = (SCORE_GROUPS[g] || 10) * 100 / totalW; byG[g].forEach(function (it) { pts[it.id] = w / byG[g].length; }); });
   return pts;
+}
+
+// =====================================================================================
+// Từ đồng nghĩa khi chấm câu DỊCH (09/10/2026)
+//  - Mỗi dòng là 1 nhóm từ/cụm từ được coi là cùng nghĩa, ngăn cách bằng " | ".
+//  - Chỉ áp dụng cho dạng Dịch (Anh-Việt, Việt-Anh); các dạng khác vẫn chấm theo đáp án.
+//  - Tiếng Anh tự nhận dạng số nhiều / quá khứ / V-ing (increase = increased = increases = increasing).
+//  - Admin bổ sung thêm nhóm ở Trang quản trị > tab "Từ đồng nghĩa" (lưu khoá pub:synonyms), không cần sửa mã.
+//  - Chỉ đưa vào các từ thật sự cùng nghĩa trong ngữ cảnh kế toán - kinh doanh; nhóm quá rộng sẽ làm chấm Đúng cả bản dịch sai nghĩa.
+// =====================================================================================
+var SYN_BASE_TEXT = [
+  // ---- tiếng Việt
+  "công ty | doanh nghiệp",
+  "lợi nhuận | lãi",
+  "doanh thu | doanh số",
+  "chi phí | phí tổn",
+  "tăng | gia tăng | tăng lên",
+  "giảm | giảm bớt | giảm xuống",
+  "phải | cần phải | buộc phải",
+  "have to | has to | had to | need to | needs to",
+  "có thể | có khả năng",
+  "khả năng | năng lực",
+  "thực hiện | tiến hành",
+  "sử dụng | dùng",
+  "mang lại | đem lại | mang đến | đem đến",
+  "đảm bảo | bảo đảm",
+  "ảnh hưởng | tác động",
+  "khó khăn | thách thức",
+  "nhân viên | người lao động | nhân sự",
+  "khách hàng | khách",
+  "quản lý | quản trị",
+  "chính phủ | nhà nước",
+  "pháp luật | luật pháp",
+  "tình hình | tình trạng",
+  "báo cáo tài chính | bctc",
+  "kiểm toán viên | ktv",
+  "hiện nay | hiện tại | ngày nay",
+  "gần đây | dạo gần đây | thời gian gần đây",
+  "hầu hết | phần lớn | đa số",
+  "tất cả | toàn bộ",
+  "công bố | thông báo",
+  "hoàn thành | hoàn tất",
+  "xin lỗi | rất tiếc | lấy làm tiếc",
+  "trân trọng | đánh giá cao | cảm kích",
+  "hy vọng | hi vọng | mong | mong muốn",
+  "tuyển dụng | tuyển",
+  "thế giới | toàn cầu",
+  "nghiêm trọng | trầm trọng",
+  "trở nên | trở thành",
+  "liên quan đến | liên quan tới",
+  "rà soát | soát xét | xem xét lại",
+  "người dân | công dân",
+  "quốc gia | đất nước",
+  "việt nam | vn",
+  "giá | giá cả",
+  "nộp thuế | đóng thuế",
+  "tiền phạt | khoản phạt",
+  "tích lũy | tích luỹ | cộng dồn",
+  "chú ý | lưu ý | để ý",
+  "lỗi | sai sót | sai lầm",
+  "phẩm chất | tố chất",
+  "cần thiết | thiết yếu",
+  "trung thực | thật thà",
+  "nhanh | nhanh chóng",
+  "mục tiêu | mục đích",
+  "kết quả | thành quả",
+  // ---- tiếng Anh
+  "company | firm | corporation | enterprise",
+  "profit | earnings",
+  "revenue | turnover",
+  "cost | expense | expenditure",
+  "increase | rise | rose | risen | raise | go up | went up | gone up",
+  "reduce | decrease | lower | cut | go down | went down",
+  "employee | staff | worker | personnel",
+  "customer | client",
+  "use | utilize | utilise",
+  "provide | offer",
+  "important | crucial | significant",
+  "necessary | essential | required",
+  "big | large",
+  "begin | began | begun | start | commence",
+  "finish | complete",
+  "buy | bought | purchase",
+  "show | shown | demonstrate",
+  "get | got | gotten | obtain | receive",
+  "improve | enhance",
+  "problem | issue",
+  "difficulty | challenge",
+  "many | numerous | a lot of | lots of",
+  "recently | lately",
+  "currently | presently | at present | now",
+  "because | since",
+  "however | nevertheless",
+  "law | legislation",
+  "rule | regulation",
+  "goal | target | objective | aim",
+  "check | examine | inspect",
+  "evaluate | assess",
+  "ensure | make sure | guarantee",
+  "affect | influence | impact",
+  "result | outcome",
+  "hire | recruit | employ",
+  "error | mistake",
+  "avoid | prevent",
+  "pay attention to | focus on",
+  "sorry | apologize | apologise",
+  "appreciate | value",
+  "country | nation",
+  "global | worldwide",
+  "difficult | hard | tough",
+  "enough | sufficient | adequate",
+  "keep | kept | maintain",
+  "achieve | reach | attain",
+  "try | attempt",
+  "often | frequently",
+  "quickly | rapidly | fast",
+  "financial statements | financial statement | financial reports | financial report",
+  "in order to | so as to"
+];
+var SYN_EXTRA = [];   // nhóm do admin thêm (pub:synonyms)
+function parseSynText(lines) {
+  return (lines || []).map(function (l) { return String(l || "").split(/\s*[|;]\s*/).map(function (x) { return x.trim(); }).filter(Boolean); }).filter(function (g) { return g.length > 1; });
+}
+// tiếng Anh: bỏ đuôi số nhiều / -ed / -ing để increase = increased = increasing
+function stemEn(t) {
+  if (!/^[a-z]+$/.test(t) || t.length < 4) return t;
+  if (/ies$/.test(t) && t.length > 4) t = t.slice(0, -3) + "y";
+  else if (/sses$/.test(t)) t = t.slice(0, -2);
+  else if (/[^su]s$/.test(t)) t = t.slice(0, -1);
+  if (/ied$/.test(t) && t.length > 4) t = t.slice(0, -3) + "y";
+  else if (/ed$/.test(t) && t.length > 4) t = t.slice(0, -2);
+  else if (/ing$/.test(t) && t.length > 5) t = t.slice(0, -3);
+  if (/([b-df-hj-np-tv-z])\1$/.test(t) && !/(ll|ss|ff|zz)$/.test(t)) t = t.slice(0, -1);   // planned -> plan
+  if (/e$/.test(t) && t.length > 3) t = t.slice(0, -1);
+  return t;
+}
+function stemToks(arr) { return arr.map(function (t) { return STOP_EN[t] || STOP_VI[t] ? t : stemEn(t); }); }
+var SYN_CACHE = null;
+function synIndex() {
+  if (SYN_CACHE) return SYN_CACHE;
+  var groups = parseSynText(SYN_BASE_TEXT).concat(SYN_EXTRA), phrases = [];
+  groups.forEach(function (g, gi) { g.forEach(function (p) { var st = stemToks(toks(p)); if (st.length) phrases.push({ t: st, k: "zsyn" + gi + "z" }); }); });
+  phrases.sort(function (a, b) { return b.t.length - a.t.length; });   // cụm dài khớp trước
+  var byFirst = {}; phrases.forEach(function (p) { (byFirst[p.t[0]] = byFirst[p.t[0]] || []).push(p); });
+  return (SYN_CACHE = byFirst);
+}
+function setExtraSynonyms(lines) { SYN_EXTRA = parseSynText(lines); SYN_CACHE = null; }
+// chuỗi -> các từ mang nghĩa, đã quy về gốc và gộp từ đồng nghĩa (all = giữ cả từ chức năng)
+function synToks(s, all) {
+  var a = stemToks(toks(s)), idx = synIndex(), out = [], i = 0;
+  while (i < a.length) {
+    var cand = idx[a[i]], hit = null;
+    if (cand) for (var c = 0; c < cand.length && !hit; c++) {
+      var p = cand[c].t, ok = i + p.length <= a.length;
+      for (var j = 0; ok && j < p.length; j++) if (a[i + j] !== p[j]) ok = false;
+      if (ok) hit = cand[c];
+    }
+    if (hit) { out.push(hit.k); i += hit.t.length; } else { out.push(a[i]); i++; }
+  }
+  return all ? out : out.filter(function (t) { return t.length > 1 && !STOP_EN[t] && !STOP_VI[t]; });
+}
+// ---- chặn bản dịch đổi NGƯỢC nghĩa (tăng <-> giảm, lãi <-> lỗ, có <-> không...) dù trùng nhiều từ
+var ANTONYM_TEXT = [
+  "tăng ~ giảm", "lợi nhuận ~ lỗ", "thành công ~ thất bại", "cao ~ thấp", "nhiều ~ ít", "mua ~ bán", "xuất khẩu ~ nhập khẩu",
+  "tốt ~ xấu", "đúng ~ sai", "sớm ~ muộn", "trước ~ sau", "dễ ~ khó", "lớn ~ nhỏ", "tích cực ~ tiêu cực", "thừa ~ thiếu", "tối đa ~ tối thiểu",
+  "increase ~ reduce", "rise ~ fall", "rose ~ fell", "profit ~ loss", "success ~ failure", "succeed ~ fail", "high ~ low", "higher ~ lower", "more ~ less", "buy ~ sell", "export ~ import",
+  "good ~ bad", "correct ~ incorrect", "early ~ late", "before ~ after", "easy ~ difficult", "big ~ small", "positive ~ negative", "maximum ~ minimum", "surplus ~ deficit"
+];
+var ANT_CACHE = null;
+function antPairs() {
+  if (ANT_CACHE) return ANT_CACHE;
+  return (ANT_CACHE = ANTONYM_TEXT.map(function (l) { var x = l.split(/\s*~\s*/); return [synToks(x[0], true).join(" "), synToks(x[1], true).join(" ")]; }));
+}
+// từ phủ định, kể cả dạng ngầm (unable, fail to, without...) để không bắt nhầm khi học viên diễn đạt khác
+var NEG_RE = /(^| )(không|chưa|chẳng|chả|đừng|not|no|never|cannot|can't|won't|don't|doesn't|didn't|isn't|aren't|wasn't|weren't|haven't|hasn't|hadn't|shouldn't|wouldn't|couldn't|mustn't|unable|fail|fails|failed|failing|without|lack|lacks|lacking|nor|neither|none|nothing|nobody|hardly|default)( |$)/;
+function hasNeg(s) { s = String(s == null ? "" : s).replace(/\s(không|chưa)\s*(?=[.?!,;:)]|$)/gi, " ");   // "có ... không?" là câu hỏi, không phải phủ định
+  return NEG_RE.test(" " + normText(s).replace(/ (hay|hoặc) (không|chưa)( |$)/g, " ").replace(/ or not( |$)/g, " ").replace(/ no (longer|sooner|matter)( |$)/g, " ") + " "); }
+// true nếu bài làm mang nghĩa ngược với bản mẫu
+function contradicts(user, model) {
+  if (hasNeg(user) !== hasNeg(model)) return true;
+  var u = " " + synToks(user, true).join(" ") + " ", m = " " + synToks(model, true).join(" ") + " ";
+  var has = function (str, w) { return w && str.indexOf(" " + w + " ") >= 0; };
+  return antPairs().some(function (p) {
+    var mA = has(m, p[0]), mB = has(m, p[1]), uA = has(u, p[0]), uB = has(u, p[1]);
+    return (mA && !mB && uB && !uA) || (mB && !mA && uA && !uB);
+  });
+}
+// tải nhóm từ đồng nghĩa admin đã thêm (khoá pub:synonyms = mảng dòng "từ 1 | từ 2 | ...")
+function loadSynonyms() {
+  var cached = lsGet("gnp:synonyms", null);
+  if (cached) setExtraSynonyms(cached);
+  if (Backend.mode !== "gas") return Promise.resolve();
+  return Backend.call("pubGet", { key: "synonyms" }).then(function (r) { var v = Array.isArray(r.value) ? r.value : []; lsSet("gnp:synonyms", v); setExtraSynonyms(v); }).catch(function () {});
 }
 
 // =====================================================================================
@@ -4334,12 +4531,12 @@ VIEWS.admin = {
   render: function () {
     var a = S.adm || {}, ov = a.ov;
     var pend = ov ? ov.pending : { baoloi: 0, dexuat: 0, gopy: 0 };
-    var tabs = [["tongquan", "Tổng quan"], ["hocvien", "Học viên"], ["cauhoi", "Câu hỏi & đáp án"], ["baoloi", "Báo lỗi của học viên", pend.baoloi], ["dexuat", "Đề xuất đáp án", pend.dexuat], ["gopy", "Góp ý", pend.gopy], ["dungthu", "Giới hạn tài khoản dùng thử"], ["huongdan", "Link hướng dẫn"]];
+    var tabs = [["tongquan", "Tổng quan"], ["hocvien", "Học viên"], ["cauhoi", "Câu hỏi & đáp án"], ["baoloi", "Báo lỗi của học viên", pend.baoloi], ["dexuat", "Đề xuất đáp án", pend.dexuat], ["gopy", "Góp ý", pend.gopy], ["dungthu", "Giới hạn tài khoản dùng thử"], ["huongdan", "Link hướng dẫn"], ["dongnghia", "Từ đồng nghĩa"]];
     var head = '<div class="card"><div class="row between"><button class="backlink" data-act="goHome">' + icon("back", "sm") + ' Về trang chủ</button></div>' +
       '<h2 style="margin:10px 0;">Trang quản trị</h2><div class="tabs">' + tabs.map(function (x) { return '<button class="' + (a.tab === x[0] ? "on" : "") + '" data-act="admTab" data-t="' + x[0] + '">' + x[1] + (x[2] ? '<span class="badge">' + x[2] + "</span>" : "") + "</button>"; }).join("") + "</div></div>";
     if (a.loading && !ov) return head + '<div class="card muted">Đang tải dữ liệu…</div>';
     if (!ov) return head + '<div class="card">Không tải được dữ liệu quản trị.</div>';
-    var fn = { tongquan: admOverview, hocvien: admStudents, cauhoi: admQuestions, baoloi: admReports, dexuat: admSuggestions, gopy: admFeedback, taode: admBuilder, hieuchinh: admCalib, dungthu: admTrial, huongdan: admGuides }[a.tab] || admOverview;
+    var fn = { tongquan: admOverview, hocvien: admStudents, cauhoi: admQuestions, baoloi: admReports, dexuat: admSuggestions, gopy: admFeedback, taode: admBuilder, hieuchinh: admCalib, dungthu: admTrial, huongdan: admGuides, dongnghia: admSynonyms }[a.tab] || admOverview;
     return head + fn(a);
   },
   after: function () {
@@ -5067,6 +5264,27 @@ ACT.admRemindAll = function () {
   });
 };
 
+// ---------------- Từ đồng nghĩa khi chấm câu dịch (09/10/2026)
+function admSynonyms(a) {
+  var extra = (lsGet("gnp:synonyms", []) || []).join("\n");
+  var base = SYN_BASE_TEXT.map(function (l) { return '<div class="small" style="padding:2px 0;border-bottom:1px solid var(--line,#e5e9f2);">' + esc(l) + "</div>"; }).join("");
+  return '<div class="card"><h3>Từ đồng nghĩa khi chấm câu dịch</h3><p class="small muted" style="margin:6px 0 10px;">Khi chấm dạng <b>Dịch</b>, các từ trong cùng một nhóm được coi là trùng nhau (VD học viên viết "công ty" thay cho "doanh nghiệp" vẫn được tính). Tiếng Anh tự nhận số nhiều, quá khứ, V-ing. Bài dịch mang <b>nghĩa ngược</b> (tăng/giảm, lãi/lỗ, thêm hoặc thiếu "không/not"...) bị tính Sai dù trùng nhiều từ.<br>' +
+    'Chỉ thêm những từ <b>thật sự cùng nghĩa</b> trong ngữ cảnh kế toán - kinh doanh; nhóm quá rộng sẽ làm chấm Đúng cả bản dịch sai nghĩa.</p>' +
+    '<div class="field"><b>Nhóm bổ sung</b> <span class="small muted">- mỗi dòng 1 nhóm, các từ ngăn cách bằng dấu | (VD: <code>hàng tồn kho | tồn kho</code>)</span>' +
+    '<textarea id="synExtra" rows="8" style="width:100%;margin-top:6px;font-family:inherit;" placeholder="hàng tồn kho | tồn kho&#10;inventory | stock">' + esc(extra) + "</textarea></div>" +
+    '<div class="row" style="margin-top:10px;"><button class="btn" data-act="admSaveSyn">Lưu nhóm từ</button></div>' +
+    '<details style="margin-top:16px;"><summary class="small"><b>Danh sách có sẵn (' + SYN_BASE_TEXT.length + ' nhóm)</b> - bấm để xem</summary><div style="margin-top:8px;columns:2;column-gap:24px;">' + base + "</div></details></div>";
+}
+ACT.admSaveSyn = function () {
+  var lines = el("synExtra").value.split(/\n+/).map(function (l) { return l.trim(); }).filter(Boolean);
+  var bad = lines.filter(function (l) { return parseSynText([l]).length === 0; });
+  if (bad.length) return toast("Mỗi dòng cần ít nhất 2 từ ngăn cách bằng dấu | (dòng chưa đúng: " + bad[0] + ")");
+  lines = lines.slice(0, 300);
+  lsSet("gnp:synonyms", lines); setExtraSynonyms(lines); render();
+  adm("adminKVSet", { scope: "pub", key: "synonyms", value: lines }).then(function () { toast("Đã lưu " + lines.length + " nhóm từ đồng nghĩa. Học viên tải lại trang để áp dụng."); })
+    .catch(function () { toast("Không lưu được, vui lòng thử lại"); });
+};
+
 // =====================================================================================
 // khởi động
 // =====================================================================================
@@ -5075,13 +5293,13 @@ function boot() {
   S.paletteCollapsed = window.innerWidth < 600;
   render();
   try { loadBank(); } catch (e) { el("app").innerHTML = '<div class="card">Không tải được bộ câu hỏi: ' + esc(e.message) + "</div>"; return; }
-  Backend.init().then(function () { return Promise.all([loadQEdits(), loadCustomExams()]); }).then(function () {
+  Backend.init().then(function () { return Promise.all([loadQEdits(), loadCustomExams(), loadSynonyms()]); }).then(function () {
     S.adminToken = ssGet("gnp:admintok");
     var p = lsGet("gnp:profile", null);
     if (p && p.phone) startSession(p, false); else go("login");
   });
 }
-window.GNP = { get S() { return S; }, get ITEMS() { return ITEMS; }, get ALL() { return ALL; }, grade: grade, pointsTable: pointsTable, levelExamDef: levelExamDef, get CUSTOM_EXAMS() { return CUSTOM_EXAMS; }, go: go, ACT: ACT, Backend: Backend, Sync: Sync, practiceable: practiceable, startPractice: startPractice };
+window.GNP = { get S() { return S; }, get ITEMS() { return ITEMS; }, get ALL() { return ALL; }, grade: grade, contradicts: contradicts, synToks: synToks, setExtraSynonyms: setExtraSynonyms, pointsTable: pointsTable, levelExamDef: levelExamDef, get CUSTOM_EXAMS() { return CUSTOM_EXAMS; }, go: go, ACT: ACT, Backend: Backend, Sync: Sync, practiceable: practiceable, startPractice: startPractice };
 boot();
 
 })();
