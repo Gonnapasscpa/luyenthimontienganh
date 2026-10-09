@@ -964,8 +964,9 @@ function ssGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return
 function ssSet(k, v) { try { if (v == null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) {} }
 function normalizePhone(s) {
   var d = (s || "").toString().replace(/\D+/g, "");
-  if (d.length === 11 && d.slice(0, 2) === "84") d = "0" + d.slice(2);
-  else if (d.length === 9) d = "0" + d;
+  if (d.length === 12 && d.slice(0, 3) === "840") d = d.slice(2);
+  else if (d.length === 11 && d.slice(0, 2) === "84") d = "0" + d.slice(2);
+  else if (d.length === 9) d = "0" + d;   // SĐT trong Excel hay mất số 0 đầu
   return d;
 }
 function simpleHash(str) { var h = 0x811c9dc5; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16); }
@@ -4409,12 +4410,24 @@ ACT.admActView = function (t) { S.adm.actView = t.getAttribute("data-v"); render
 ACT.admPeriod = function (t) { S.adm.period = +t.getAttribute("data-v"); render(); };
 var STATE_LABEL = { hoat_dong: "Đã kích hoạt", dung_thu: "Dùng thử", khoa: "Khoá" };
 function stState(s) { return s.state || (s.status === "khoa" ? "khoa" : s.status === "dung_thu" ? "dung_thu" : "hoat_dong"); }
+// 09/10/2026: "đã vào học" = đã đăng nhập web ít nhất 1 lần; thống kê chỉ đếm học viên (không đếm admin)
+function isAdmS(s) { return s.role === "admin"; }
+function startedS(s) { return s.started != null ? !!s.started : !!(s.lastVisit || s.visits > 0); }
+function notStarted(s) { return !isAdmS(s) && stState(s) === "hoat_dong" && !startedS(s); }
+function stMatch(s, f) {
+  if (!f) return true;
+  if (f === "suspect") return !!s.suspect;
+  if (f === "da_vao") return !isAdmS(s) && stState(s) === "hoat_dong" && startedS(s);
+  if (f === "chua_vao") return notStarted(s);
+  return stState(s) === f && (f !== "hoat_dong" || !isAdmS(s));
+}
 function statePill(st) { return '<span class="pill ' + (st === "hoat_dong" ? "success" : st === "dung_thu" ? "warn" : "danger") + '">' + STATE_LABEL[st] + "</span>"; }
 function admStudents(a) {
   var ov = a.ov, sums = ov.summaries, f = a.stFilter || "", q = (a.stQ || "").toLowerCase();
-  var cnt = { hoat_dong: 0, dung_thu: 0, khoa: 0 }; ov.students.forEach(function (s) { cnt[stState(s)]++; });
+  var cnt = { hoat_dong: 0, dung_thu: 0, khoa: 0, da_vao: 0, chua_vao: 0, admin: 0, all: 0, noMail: 0 };
+  ov.students.forEach(function (s) { if (isAdmS(s)) { cnt.admin++; return; } cnt.all++; cnt[stState(s)]++; if (stState(s) === "hoat_dong") { if (startedS(s)) cnt.da_vao++; else { cnt.chua_vao++; if (!/@/.test(s.email || "")) cnt.noMail++; } } });
   var d1 = a.stFrom || "", d2 = a.stTo || "", sel = a.sel || (a.sel = {});
-  var list = ov.students.filter(function (s) { var c = (s.created || "").slice(0, 10); return (!f || (f === "suspect" ? s.suspect : stState(s) === f)) && (!q || (s.name + " " + s.phone + " " + s.email).toLowerCase().indexOf(q) >= 0) && (!d1 || c >= d1) && (!d2 || c <= d2); })
+  var list = ov.students.filter(function (s) { var c = (s.created || "").slice(0, 10); return stMatch(s, f) && (!q || (s.name + " " + s.phone + " " + s.email).toLowerCase().indexOf(q) >= 0) && (!d1 || c >= d1) && (!d2 || c <= d2); })
     // 30/09: admin lên đầu; học viên xếp theo ngày tạo từ cũ nhất đến mới nhất (cùng ngày giữ thứ tự trong Google Sheet)
     .sort(function (x, y) { var isA = function (u) { return /^\s*(admin|quản trị|quan tri|quản trị viên)\s*$/i.test(u.role || ""); }, ax = isA(x) ? 0 : 1, ay = isA(y) ? 0 : 1; if (ax !== ay) return ax - ay;
       return (x.created || "").localeCompare(y.created || "") || ov.students.indexOf(x) - ov.students.indexOf(y); });
@@ -4422,17 +4435,21 @@ function admStudents(a) {
     var m = sums[s.phone] || {}, st = stState(s);
     var ck = s.role === "admin" ? '<td class="c"><span class="small muted" data-tip="Không xoá tài khoản admin">-</span></td>' : '<td class="c"><input type="checkbox" class="stSel" data-act="admStuChk" data-p="' + esc(s.phone) + '"' + (sel[s.phone] ? " checked" : "") + "></td>";
     return '<tr class="click' + (sel[s.phone] ? " sel-row" : "") + '" data-act="admStudent" data-p="' + esc(s.phone) + '">' + ck + '<td><b>' + esc(s.name) + "</b>" + (s.role === "admin" ? ' <span class="pill accent">admin</span>' : "") + '<div class="small muted">' + esc(s.phone) + (s.email ? " · " + esc(s.email) : "") + "</div></td>" +
-      "<td>" + statePill(st) + (st === "dung_thu" ? '<div style="margin-top:6px;"><button class="btn sm" data-act="admActivate" data-p="' + esc(s.phone) + '">Kích hoạt</button></div>' : "") + (s.hasPassword === false ? '<div class="small muted" style="margin-top:4px;">chưa tạo mật khẩu</div>' : "") + "</td>" +
+      "<td>" + statePill(st) + (st === "dung_thu" ? '<div style="margin-top:6px;"><button class="btn sm" data-act="admActivate" data-p="' + esc(s.phone) + '">Kích hoạt</button></div>' : "") + (notStarted(s) ? '<div class="small" style="margin-top:4px;color:var(--danger,#c00000);">chưa vào học' + (s.hasPassword === false ? " (chưa tạo mật khẩu)" : "") + "</div>" + (s.reminded ? '<div class="small muted">đã nhắc ' + esc(fmtVN(s.reminded)) + "</div>" : "") :
+        s.hasPassword === false && !isAdmS(s) ? '<div class="small muted" style="margin-top:4px;">chưa tạo mật khẩu</div>' : "") + "</td>" +
       '<td class="small">' + esc(fmtVN((s.created || "").slice(0, 10))) + (s.source === "tu_dang_ky" ? "<br>tự đăng ký" : s.source === "admin_tao" ? "<br>admin tạo" : "") + '</td><td class="num">' + s.visits + '</td><td class="small">' + esc(fmtVN(s.lastVisit) || "-") + "</td>" +
       '<td class="num">' + (m.attempts || 0) + '</td><td class="num">' + (m.attempts ? m.rate + "%" : "-") + '</td><td class="num">' + (m.minutes || 0) + '</td><td class="num">' + (m.exams ? m.avgScore : "-") + '</td><td class="num">' + devCell(s) + "</td></tr>";
   }).join("");
-  var fOpt = [["", "Tất cả (" + ov.students.length + ")"], ["hoat_dong", "Đã kích hoạt (" + cnt.hoat_dong + ")"], ["dung_thu", "Dùng thử (" + cnt.dung_thu + ")"], ["khoa", "Khoá (" + cnt.khoa + ")"], ["suspect", "Nghi dùng chung tài khoản (" + ov.students.filter(function (s) { return s.suspect; }).length + ")"]]
+  var fOpt = [["", "Tất cả (" + cnt.all + " học viên" + (cnt.admin ? " + " + cnt.admin + " admin" : "") + ")"], ["hoat_dong", "Đã kích hoạt (" + cnt.hoat_dong + ")"], ["da_vao", "Đã kích hoạt - đã vào học (" + cnt.da_vao + ")"], ["chua_vao", "Đã kích hoạt - chưa vào học (" + cnt.chua_vao + ")"], ["dung_thu", "Dùng thử (" + cnt.dung_thu + ")"], ["khoa", "Khoá (" + cnt.khoa + ")"], ["suspect", "Nghi dùng chung tài khoản (" + ov.students.filter(function (s) { return s.suspect; }).length + ")"]]
     .map(function (x) { return '<option value="' + x[0] + '"' + (f === x[0] ? " selected" : "") + ">" + x[1] + "</option>"; }).join("");
-  return '<div class="statgrid">' + tile(cnt.hoat_dong, "Học viên đã kích hoạt") + tile(cnt.dung_thu, "Tài khoản dùng thử") + tile(ov.students.filter(function (s) { return stState(s) === "dung_thu" && (s.created || "").slice(0, 10) >= dayKey(new Date(Date.now() - 6 * 864e5)); }).length, "Đăng ký dùng thử 7 ngày qua") + "</div>" +
+  var remind = cnt.chua_vao ? '<div class="notice warn" style="margin:0 0 12px;"><div class="row between" style="gap:10px;flex-wrap:wrap;"><span><b>' + cnt.chua_vao + "</b> học viên đã kích hoạt nhưng chưa đăng nhập vào học" + (cnt.noMail ? " (" + cnt.noMail + " người chưa có email, cần liên hệ qua điện thoại/Zalo)" : "") +
+    '. Hệ thống tự gửi <b>1 email nhắc</b> sau 24 giờ kể từ khi kích hoạt (trong khung 8h-21h). Chọn bộ lọc "Đã kích hoạt - chưa vào học" để xem danh sách.</span>' +
+    '<button class="btn sm" data-act="admRemindAll"' + (cnt.chua_vao > cnt.noMail ? "" : " disabled") + ">Gửi email nhắc ngay</button></div></div>" : "";
+  return '<div class="statgrid">' + tile(cnt.hoat_dong, "Học viên đã kích hoạt (không tính admin)") + tile(cnt.da_vao, "Đã tạo mật khẩu và vào học") + tile(cnt.chua_vao, "Chưa vào học") + tile(cnt.dung_thu, "Tài khoản dùng thử") + tile(ov.students.filter(function (s) { return stState(s) === "dung_thu" && (s.created || "").slice(0, 10) >= dayKey(new Date(Date.now() - 6 * 864e5)); }).length, "Đăng ký dùng thử 7 ngày qua") + "</div>" +
     '<div class="card"><div class="row between"><h3>Danh sách tài khoản</h3><div class="row"><button class="btn sm secondary" data-act="admExportStudents">Tải danh sách (Excel/CSV)</button><button class="btn sm secondary" data-act="admImportStudents">Nhập danh sách</button><button class="btn sm" data-act="admAddStudent">' + icon("plus", "sm") + " Thêm học viên</button></div></div>" +
     '<div class="grid cols-4" style="margin:10px 0;"><label class="field">Lọc<select id="stFilter">' + fOpt + '</select></label><label class="field">Tìm (tên, SĐT, email)<input type="search" id="stQ" value="' + esc(a.stQ || "") + '"></label>' +
     '<label class="field">Ngày tạo từ<input type="date" id="stFrom" value="' + esc(d1) + '"></label><label class="field">Ngày tạo đến<input type="date" id="stTo" value="' + esc(d2) + '"></label></div>' +
-    suspectNote(ov) + stBulkBar(list, sel) +
+    remind + suspectNote(ov) + stBulkBar(list, sel) +
     '<p class="small muted" style="margin:0 0 10px;">Khách tự đăng ký là tài khoản <b>Dùng thử</b>. Khi khách mua sách, bấm <b>Kích hoạt</b>: hệ thống mở toàn bộ tính năng và tự gửi email thông báo. Bấm vào một dòng để xem chi tiết tiến độ.</p>' +
     '<div class="tablewrap"><table><thead><tr><th class="c" style="width:34px;"><input type="checkbox" data-act="admStuChkAll" data-tip="Chọn / bỏ chọn tất cả học viên đang hiện (trừ admin)"' + (list.some(function (s) { return s.role !== "admin"; }) && list.every(function (s) { return s.role === "admin" || sel[s.phone]; }) ? " checked" : "") + '></th><th>Tài khoản</th><th>Trạng thái</th><th>Ngày tạo</th><th class="num">Lượt truy cập</th><th>Truy cập gần nhất</th><th class="num">Lượt làm câu</th><th class="num">% đúng</th><th class="num">Phút học</th><th class="num">Điểm TB</th><th class="num" data-tip="Số thiết bị khác nhau đã đăng nhập trong 30 ngày / số lần bị tự đăng xuất do vượt giới hạn thiết bị">Thiết bị 30 ngày</th></tr></thead><tbody>' + rows + "</tbody></table></div></div>";
 }
@@ -4459,7 +4476,7 @@ function stBulkBar(list, sel) {
 }
 function admStuVisible() {
   var a = S.adm, ov = a.ov, f = a.stFilter || "", q = (a.stQ || "").toLowerCase(), d1 = a.stFrom || "", d2 = a.stTo || "";
-  return ov.students.filter(function (s) { var c = (s.created || "").slice(0, 10); return s.role !== "admin" && (!f || stState(s) === f) && (!q || (s.name + " " + s.phone + " " + s.email).toLowerCase().indexOf(q) >= 0) && (!d1 || c >= d1) && (!d2 || c <= d2); });
+  return ov.students.filter(function (s) { var c = (s.created || "").slice(0, 10); return s.role !== "admin" && stMatch(s, f) && (!q || (s.name + " " + s.phone + " " + s.email).toLowerCase().indexOf(q) >= 0) && (!d1 || c >= d1) && (!d2 || c <= d2); });
 }
 ACT.admStuChk = function (t, ev) { if (ev && ev.stopPropagation) ev.stopPropagation(); var p = t.getAttribute("data-p"); S.adm.sel[p] = t.checked; if (!t.checked) delete S.adm.sel[p]; render(); };
 ACT.admStuChkAll = function (t) { var on = t.checked; admStuVisible().forEach(function (s) { if (on) S.adm.sel[s.phone] = true; else delete S.adm.sel[s.phone]; }); render(); };
@@ -5034,6 +5051,20 @@ ACT.admSaveGuides = function () {
   Promise.all([adm("adminKVSet", { scope: "pub", key: "guides", value: { trial: v.trial, student: v.student } }), adm("adminKVSet", { scope: "adm", key: "guides", value: { admin: v.admin } })])
     .then(function () { toast("Đã lưu link hướng dẫn"); })
     .catch(function () { S.adm.guides = old; render(); toast("Không lưu được link, vui lòng thử lại"); });
+};
+
+ACT.admRemindAll = function () {
+  var ov = S.adm.ov, list = ov.students.filter(notStarted), withMail = list.filter(function (s) { return /@/.test(s.email || ""); });
+  confirmBox("Gửi email nhắc đăng nhập tới <b>" + withMail.length + "</b> học viên đã kích hoạt nhưng chưa vào học? Người vừa được nhắc trong 12 giờ qua sẽ được bỏ qua; mỗi lần gửi tối đa 25 email.", "Gửi email nhắc", function () {
+    toast("Đang gửi email nhắc…");
+    adm("adminRemindLogin", {}).then(function (r) {
+      var x = r.result || {};
+      var at = dayKey() + " " + pad2(new Date().getHours()) + ":" + pad2(new Date().getMinutes()) + ":00";
+      (x.phones || []).forEach(function (p) { ov.students.forEach(function (s) { if (s.phone === p) s.reminded = at; }); }); render();
+      toast("Đã gửi " + (x.sent || 0) + " email nhắc" + (x.wait ? " · bỏ qua " + x.wait + " người vừa được nhắc" : "") + (x.fail ? " · lỗi " + x.fail : "") + (x.more ? " · còn " + x.more + " người, bấm gửi lại để tiếp tục" : ""));
+      admSync();
+    }).catch(function () { toast("Không gửi được, vui lòng thử lại"); });
+  });
 };
 
 // =====================================================================================
